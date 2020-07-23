@@ -103,7 +103,7 @@ class agent(neuralnet):
     def __init__(self, numberofstate, numberofaction, activation_func='elu', 
                  trainable_layer=True, initializer='he_normal', list_nn=[250,150], 
                  load_weights=False, location='./', buffer=50000, annealing= 1000, 
-                 batchSize= 100,gamma= 0.95, tau = 0.001, numberofmodels=5):
+                 batchSize= 100,gamma= 0.92, tau = 0.001, numberofmodels=5):
         
         super().__init__(numberofstate, numberofaction, activation_func, trainable_layer, initializer,
                          list_nn, load_weights, numberofmodels)
@@ -118,10 +118,7 @@ class agent(neuralnet):
         self.sayac                    = 0
         self.tau                      = tau
         
-    
-    
       
-    
     
     def replay_list(self, state, action, reward, newstate, done):
         if len(self.replay) < self.buffer: #if buffer not filled, add to it
