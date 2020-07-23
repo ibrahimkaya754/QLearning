@@ -103,7 +103,7 @@ class agent(neuralnet):
     def __init__(self, numberofstate, numberofaction, activation_func='elu', 
                  trainable_layer=True, initializer='he_normal', list_nn=[250,150], 
                  load_weights=False, location='./', buffer=50000, annealing= 1000, 
-                 batchSize= 100,gamma= 0.92, tau = 0.001, numberofmodels=5):
+                 batchSize= 100,gamma= 0.95, tau = 0.001, numberofmodels=5):
         
         super().__init__(numberofstate, numberofaction, activation_func, trainable_layer, initializer,
                          list_nn, load_weights, numberofmodels)
@@ -118,8 +118,6 @@ class agent(neuralnet):
         self.sayac                    = 0
         self.tau                      = tau
         
-      
-    
     def replay_list(self, state, action, reward, newstate, done):
         if len(self.replay) < self.buffer: #if buffer not filled, add to it
             self.replay.append((state, action, reward, newstate, done))
@@ -141,12 +139,12 @@ class agent(neuralnet):
             oldstate, actionn, rewardd, new_state, done = memory
             old_qval = model.predict(oldstate.reshape(1,self.numberofstate), batch_size=1)
             new_qval = model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
-            ax       = np.argmax(new_qval[0][0:int(self.action_number)])
-            ay       = np.argmax(new_qval[0][int(self.action_number/2):int(self.action_number)])
+            ax       = np.argmax(new_qval[0][0:int(self.numberofaction)])
+            ay       = np.argmax(new_qval[0][int(self.numberofaction/2):int(self.numberofaction)])
             newQ     = target_model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
             maxQ_x   = newQ[0][ax]
-            maxQ_y   = newQ[0][int(self.action_number/2)+ay]
-            y        = np.zeros((1,self.action_number))
+            maxQ_y   = newQ[0][int(self.numberofaction/2)+ay]
+            y        = np.zeros((1,self.numberofaction))
             y[:]     = old_qval[:]
             if not done: #non-terminal state
                 update_x = (rewardd + (self.gamma * maxQ_x))
@@ -156,9 +154,9 @@ class agent(neuralnet):
                 update_y = rewardd
                 
             y[0][int(actionn)]    = update_x
-            y[0][int(self.action_number/2)+int(actionn[0,1])] = update_y
+            y[0][int(self.numberofaction/2)+int(actionn[0,1])] = update_y
             X_train.append(oldstate.reshape(self.numberofstate,))
-            y_train.append(y.reshape(self.action_number,))
+            y_train.append(y.reshape(self.numberofaction,))
         
         X_train = np.array(X_train)
         y_train = np.array(y_train)
