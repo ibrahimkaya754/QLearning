@@ -100,10 +100,10 @@ class neuralnet():
             print('\nModel Description: '+self.__describe__())
 
 class agent(neuralnet):
-    def __init__(self, numberofstate, numberofaction, activation_func='elu', 
-                 trainable_layer=True, initializer='he_normal', list_nn=[250,150], 
-                 load_weights=False, location='./', buffer=50000, annealing= 1000, 
-                 batchSize= 100,gamma= 0.95, tau = 0.001, numberofmodels=5):
+    def __init__(self, numberofstate, numberofaction, activation_func= 'elu', 
+                 trainable_layer= True, initializer= 'he_normal', list_nn= [250,150], 
+                 load_weights= False, location= './', buffer= 50000, annealing= 1000, 
+                 batchSize= 100,gamma= 0.95, tau =0.001, numberofmodels=5, dimension= 2):
         
         super().__init__(numberofstate, numberofaction, activation_func, trainable_layer, initializer,
                          list_nn, load_weights, numberofmodels)
@@ -117,12 +117,8 @@ class agent(neuralnet):
         self.replay                   = []
         self.sayac                    = 0
         self.tau                      = tau
+        self.dim                      = dimension
         
-    
-    
-      
-    
-    
     def replay_list(self, state, action, reward, newstate, done):
         if len(self.replay) < self.buffer: #if buffer not filled, add to it
             self.replay.append((state, action, reward, newstate, done))
@@ -139,29 +135,56 @@ class agent(neuralnet):
         minibatch  = random.sample(self.replay, self.batchSize)
         X_train    = []
         y_train    = []
+        action     = {}
+        maxQ       = {}
+        Qval       = {}
+        state      = {}
+        update     = {}
         for memory in minibatch:
             #Get max_Q(S',a)
-            oldstate, actionn, rewardd, new_state, done = memory
-            old_qval = model.predict(oldstate.reshape(1,self.numberofstate), batch_size=1)
-            new_qval = model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
-            ax       = np.argmax(new_qval[0][0:int(self.action_number)])
-            ay       = np.argmax(new_qval[0][int(self.action_number/2):int(self.action_number)])
+            #oldstate, actionn, rewardd, new_state, done = memory
+            state['old'], actionn, reward, state['new'], done = memory
+            for key in state.keys():
+                Qval[key] = model.predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
+            y        = np.zeros((1,self.numberofaction))
+            y[:]     = Qval['old'][:]
+            #Qval['old'] = model.predict(oldstate.reshape(1,self.numberofstate), batch_size=1)
+            #Qval['new'] = model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
+            #old_qval = model.predict(oldstate.reshape(1,self.numberofstate), batch_size=1)
+            #new_qval = model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
+            dim_     = 0
             newQ     = target_model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
-            maxQ_x   = newQ[0][ax]
-            maxQ_y   = newQ[0][int(self.action_number/2)+ay]
-            y        = np.zeros((1,self.action_number))
-            y[:]     = old_qval[:]
+            for act in self.dim:
+                action[act] = np.argmax(new_qval[0][(dim_/self.dim)*self.numberofaction : (dim_+1/self.dim)*self.numberofaction])
+                maxQ[act]   = newQ[0][action[act]+(dim_/self.dim)*self.numberofaction]
+
+                if not done:
+                    update[act] = reward + self.gamma * maxQ[act]
+                else:
+                    update[act] = reward
+        
+                y[0][actionn[0,dim_]] = update[act]
+                dim_                  = dim_ + 1
+                
+            #ax       = np.argmax(new_qval[0][0:int(self.numberofaction/2)])
+            #ay       = np.argmax(new_qval[0][int(self.numberofaction/2):int(self.numberofaction)])
+            #newQ     = target_model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
+            #maxQ_x   = newQ[0][ax]
+            #maxQ_y   = newQ[0][int(self.numberofaction/2)+ay]
+            
+            '''
             if not done: #non-terminal state
                 update_x = (rewardd + (self.gamma * maxQ_x))
                 update_y = (rewardd + (self.gamma * maxQ_y))
             else: #terminal state
                 update_x = rewardd
                 update_y = rewardd
+            '''
                 
-            y[0][int(actionn)]    = update_x
-            y[0][int(self.action_number/2)+int(actionn[0,1])] = update_y
+            y[0][int(actionn[0,0])]    = update_x
+            y[0][int(self.numberofaction/2)+int(actionn[0,1])] = update_y
             X_train.append(oldstate.reshape(self.numberofstate,))
-            y_train.append(y.reshape(self.action_number,))
+            y_train.append(y.reshape(self.numberofaction,))
         
         X_train = np.array(X_train)
         y_train = np.array(y_train)
