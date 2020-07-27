@@ -25,76 +25,59 @@ class neuralnet():
         self.trainable_layer = trainable_layer
         self.init            = initializer
         self.opt             = Yogi(lr=0.001)
-        self.losses          = {}
-        self.lossWeights     = {}
         self.regularization  = 0.0
+        self.description     = ''
         self.numberofstate   = numberofstate
         self.numberofaction  = numberofaction
         self.list_nn         = list_nn
         self.load_weights    = load_weights
         self.total_layer_no  = len(self.list_nn)+1
         self.numberofmodels  = numberofmodels
-        self.model_          = {}
+        self.loss            = huber_loss
+        self.model         = {}
         self.input           = Input(shape=(self.numberofstate,), name='states')
 
         for ii in range(self.numberofmodels):
-            mdl_name = 'model'+str(ii+1)
-            self.L1 = Dense(self.list_nn[0], activation=self.activation_func,
-                        kernel_initializer=self.init, trainable = self.trainable_layer,
-                        kernel_regularizer=regularizers.l2(self.regularization))(self.input)
+            model_name = 'model'+str(ii+1)
+            model_path = os.getcwd()+"/" + model_name + '.hdf5'
+            L1 = Dense(self.list_nn[0], activation=self.activation_func,
+                       kernel_initializer=self.init, trainable = self.trainable_layer,
+                       kernel_regularizer=regularizers.l2(self.regularization))(self.input)
 
             for ii in range(1,len(self.list_nn)):
-                self.L1 = Dense(self.list_nn[ii], activation=self.activation_func, trainable = self.trainable_layer,
-                            kernel_initializer=self.init,
-                            kernel_regularizer=regularizers.l2(self.regularization))(self.L1)    
+                L1 = Dense(self.list_nn[ii], activation=self.activation_func, trainable = self.trainable_layer,
+                           kernel_initializer=self.init,
+                           kernel_regularizer=regularizers.l2(self.regularization))(L1)    
 
 
-            self.LOut = Dense(self.numberofaction, activation='linear', name='action'+str(ii+1),
-                            kernel_initializer=self.init,
-                            kernel_regularizer=regularizers.l2(self.regularization))(self.L1)
+            LOut  = Dense(self.numberofaction, activation='linear', name='action'+str(ii+1),
+                          kernel_initializer=self.init,
+                          kernel_regularizer=regularizers.l2(self.regularization))(L1)
+            
+            model = Model(inputs=self.input, outputs=LOut)
+            plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
+            print('\n%s with %s params created' % (model_name,model.count_params()))
+            if os.path.exists(model_path):
+                if self.load_weights:
+                    print('weights loaded for %s' % (model_name))
+                    self.model.load_weights(model_path)
 
-            self.__build_model__(model_name= mdl_name)
-            self.model_[mdl_name] = {'model_name': self.model_name,
-                                     'model_path': self.model_path,
-                                     'network'   : self.model}
-                        
-    def __build_model__(self,model_name):
-        self.model                         = Model(inputs=self.input, outputs=self.LOut)
-        self.model_name                    = model_name
-        self.description                   = ''
-        self.losses['all_targets']         = huber_loss
-        self.lossWeights['all_targets']    = 1.0
-        self.model_path                    = os.getcwd()+"/" + self.model_name + '.hdf5'
-        self.learning_rate_decrease_factor = 0.97
-        self.learning_rate_patience        = 5
-        self.number_of_params              = self.model.count_params()
-        self.reduce_lr                     = ReduceLROnPlateau(monitor='val_loss', 
-                                                               factor=self.learning_rate_decrease_factor,
-                                                               patience=self.learning_rate_patience, 
-                                                               min_lr=0.0000001, mode='min', verbose=1)
-        self.checkpoint                    = ModelCheckpoint(self.model_path, 
-                                                             monitor='val_loss', verbose=1, 
-                                                             save_best_only=True, period=1, 
-                                                             mode='min',save_weights_only=False)
-        self.model.compile(optimizer=self.opt, loss=self.losses['all_targets'], metrics=['mse'])
-        plot_model(self.model,to_file=self.model_name+'.png', show_layer_names=True,show_shapes=True)
-        print('\n%s with %s params created' % (self.model_name,self.number_of_params))
-        if os.path.exists(self.model_path):
-            if self.load_weights:
-                print('weights loaded for %s' % (self.model_name))
-                self.model.load_weights(self.model_path)
-
+            self.model[model_name] = { 'model_name'     : model_name,
+                                        'model_path'    : model_path,
+                                        'model_network' : model,
+                                        'numberofparams': model.count_params(),
+                                        'compile'       : model.compile(optimizer=self.opt, 
+                                                          loss=self.loss, metrics=['mse']) }
+                
     def __describe__(self):
         return self.description
      
     def summary(self):
         for key in self.model_.keys():
             self.model_[key]['network'].summary()
-            print('\nModel Name is: ',self.model_[key]['model_name'])
-            print('\nModel Path is: ',self.model_[key]['model_path'])
+            print('\nModel Name is: ',self.model[key]['model_name'])
+            print('\nModel Path is: ',self.model[key]['model_path'])
             print('\nActivation Function is: ',self.activation_func)
-            print('\nLearning Rate Decreases by a factor of %s with patience of %s' % (self.learning_rate_decrease_factor,
-                                                                                self.learning_rate_patience))
             print('\n*******************************************************************************')
         if self.description != '':
             print('\nModel Description: '+self.__describe__())
@@ -162,6 +145,44 @@ class agent(neuralnet):
         y_train = np.array(y_train)
         model.fit(X_train, y_train, batch_size=100, nb_epoch=1, verbose=1)
         return model
+        
+    def remember(self,model,target_model):
+        minibatch  = random.sample(self.replay, self.batchSize)
+        X_train    = []
+        y_train    = []
+        action     = {}
+        maxQ       = {}
+        Qval       = {}
+        state      = {}
+        update     = {}
+        for memory in minibatch:
+            #Get max_Q(S',a)
+            state['old'], actionn, reward, state['new'], done = memory
+            for key in state.keys():
+                Qval[key] = model.predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
+            y             = np.zeros((1,self.numberofaction))
+            y[:]          = Qval['old'][:]
+            dim_          = 0
+            Qval['trgt']  = target_model.predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
+            for act in self.dim:
+                action[act] = np.argmax(Qval['new'][0][(dim_/self.dim)*self.numberofaction : (dim_+1/self.dim)*self.numberofaction])
+                maxQ[act]   = Qval['trgt'][0][action[act]+(dim_/self.dim)*self.numberofaction]
+
+                if not done:
+                    update[act] = reward + self.gamma * maxQ[act]
+                else:
+                    update[act] = reward
+        
+                y[0][actionn[0,dim_]+(dim_/self.dim)*self.numberofaction] = update[act]
+                dim_                                                      = dim_ + 1
+    
+            X_train.append(state['old'].reshape(self.numberofstate,))
+            y_train.append(y.reshape(self.numberofaction,))
+        
+        X_train = np.array(X_train)
+        y_train = np.array(y_train)
+        model.fit(X_train, y_train, batch_size=100, nb_epoch=1, verbose=1)
+        return model
 
     def train_model(self,epch,choose):
         if len(self.replay) >= self.annealing:            
@@ -171,52 +192,20 @@ class agent(neuralnet):
                 self.train_model2(epch)
             elif choose == 3:
                 self.train_model3(epch)
-            elif choose == 4:
-                self.train_model4(epch)
-            elif choose == 5:
-                self.train_model5(epch)
+
             
     def train_model1(self, epch):
         if len(self.replay) >= self.annealing:
-            self.remember(self.model1,self.model2)
+            self.remember(self.model_['model1']['network'],self.model2)
             if epch % 20 == 0:
                 self.remember(self.model5,self.model1)
                 self.remember(self.model4,self.model5)
                 self.remember(self.model3,self.model4)
                 self.remember(self.model2,self.model3)          
-            if epch % 50 == 0:     
-                self.model2 = self.model1
-                self.model2.load_weights(self.location + "/model1.h5")
             if epch % 99 == 0:
-                self.model1 = self.model_best
                 self.model1.load_weights(self.location + "/model_best.h5")
-                
+                 
     def train_model2(self, epch):
-        if len(self.replay) >= self.annealing:
-            if epch % 10 == 0:
-                self.remember(self.model5,self.model1)
-                self.remember(self.model4,self.model5)
-                self.remember(self.model3,self.model4)
-                self.remember(self.model2,self.model3) 
-            self.remember(self.model1,self.model2)            
-            if epch % 25 == 0:     
-                self.model2 = self.model1
-                self.model2.load_weights(self.location + "/model1.h5")
-            if epch % 99 == 0:
-                self.model1 = self.model_best
-                self.model1.load_weights(self.location + "/model_best.h5")
-
-    def train_model3(self, epch):
-        if len(self.replay) >= self.annealing:         
-            self.remember(self.model1,self.model2)
-            if epch % 15 == 0:
-                self.model2 = self.model1
-                self.model2.load_weights(self.location + "/model1.h5")
-            if epch % 99 == 0:
-                self.model1 = self.model_best
-                self.model1.load_weights(self.location + "/model_best.h5")
-       
-    def train_model4(self, epch):
         if len(self.replay) >= self.annealing:
             self.remember(self.model1,self.model2)
             if epch % 32 == 0:             
@@ -228,16 +217,14 @@ class agent(neuralnet):
             if epch % 4 == 0: 
                 self.remember(self.model5,self.model1)
             if epch % 64 == 0:     
-                self.model2 = self.model1
                 self.model2.load_weights(self.location + "/model1.h5")   
             if epch % 99 == 0:
-                self.model1 = self.model_best
                 self.model1.load_weights(self.location + "/model_best.h5")
             
-    def train_model5(self, epch):
+    def train_model3(self, epch):
         if len(self.replay) >= self.annealing:
             self.remember(self.model1,self.model2)
-            main_weights = self.model1.get_weights()
+            main_weights   = self.model1.get_weights()
             target_weights = self.model2.get_weights()
             for i, layer_weights in enumerate(main_weights):
                 target_weights[i] = target_weights[i] * (1-self.tau) + self.tau * layer_weights
@@ -267,7 +254,6 @@ class agent(neuralnet):
             json_file.close()
             self.model1                   = model_from_json(loaded_model_json)
             self.model1.load_weights(self.location + "/model1.h5")
-            
             
             json_file                     = open(self.location + '/model_best.json','r')
             loaded_model_json             = json_file.read()
