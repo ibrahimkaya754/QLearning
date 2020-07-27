@@ -131,6 +131,39 @@ class agent(neuralnet):
             self.replay[self.sayac] = (state, action, reward, newstate, done)
             print("sayac = ",self.sayac)
     
+def remember(self,model,target_model):
+        minibatch  = random.sample(self.replay, self.batchSize)
+        X_train    = []
+        y_train    = []
+        for memory in minibatch:
+            #Get max_Q(S',a)
+            oldstate, actionn, rewardd, new_state = memory
+            old_qval = model.predict(oldstate.reshape(1,self.state_number), batch_size=1)
+            new_qval = model.predict(new_state.reshape(1,self.state_number), batch_size=1)
+            ax       = np.argmax(new_qval[0][0:31])
+            ay       = np.argmax(new_qval[0][31:62])
+            newQ     = target_model.predict(new_state.reshape(1,self.state_number), batch_size=1)
+            maxQ_x   = newQ[0][ax]
+            maxQ_y   = newQ[0][31+ay]
+            y        = np.zeros((1,62))
+            y[:]     = old_qval[:]
+            if rewardd != -10000: #non-terminal state
+                update_x = (rewardd + (self.gamma * maxQ_x))
+                update_y = (rewardd + (self.gamma * maxQ_y))
+            else: #terminal state
+                update_x = rewardd
+                update_y = rewardd
+                
+            y[0][int(actionn[0,0])]    = update_x
+            y[0][31+int(actionn[0,1])] = update_y
+            X_train.append(oldstate.reshape(self.state_number,))
+            y_train.append(y.reshape(62,))
+        
+        X_train = np.array(X_train)
+        y_train = np.array(y_train)
+        model.fit(X_train, y_train, batch_size=100, nb_epoch=1, verbose=1)
+        return model
+
     def remember(self,model,target_model):
         minibatch  = random.sample(self.replay, self.batchSize)
         X_train    = []
@@ -142,20 +175,15 @@ class agent(neuralnet):
         update     = {}
         for memory in minibatch:
             #Get max_Q(S',a)
-            #oldstate, actionn, rewardd, new_state, done = memory
             state['old'], actionn, reward, state['new'], done = memory
             for key in state.keys():
                 Qval[key] = model.predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
             y        = np.zeros((1,self.numberofaction))
             y[:]     = Qval['old'][:]
-            #Qval['old'] = model.predict(oldstate.reshape(1,self.numberofstate), batch_size=1)
-            #Qval['new'] = model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
-            #old_qval = model.predict(oldstate.reshape(1,self.numberofstate), batch_size=1)
-            #new_qval = model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
             dim_     = 0
-            newQ     = target_model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
+            newQ     = target_model.predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
             for act in self.dim:
-                action[act] = np.argmax(new_qval[0][(dim_/self.dim)*self.numberofaction : (dim_+1/self.dim)*self.numberofaction])
+                action[act] = np.argmax(Qval['new'][0][(dim_/self.dim)*self.numberofaction : (dim_+1/self.dim)*self.numberofaction])
                 maxQ[act]   = newQ[0][action[act]+(dim_/self.dim)*self.numberofaction]
 
                 if not done:
@@ -163,27 +191,10 @@ class agent(neuralnet):
                 else:
                     update[act] = reward
         
-                y[0][actionn[0,dim_]] = update[act]
+                y[0][actionn[0,dim_]+(dim_/self.dim)*self.numberofaction] = update[act]
                 dim_                  = dim_ + 1
-                
-            #ax       = np.argmax(new_qval[0][0:int(self.numberofaction/2)])
-            #ay       = np.argmax(new_qval[0][int(self.numberofaction/2):int(self.numberofaction)])
-            #newQ     = target_model.predict(new_state.reshape(1,self.numberofstate), batch_size=1)
-            #maxQ_x   = newQ[0][ax]
-            #maxQ_y   = newQ[0][int(self.numberofaction/2)+ay]
-            
-            '''
-            if not done: #non-terminal state
-                update_x = (rewardd + (self.gamma * maxQ_x))
-                update_y = (rewardd + (self.gamma * maxQ_y))
-            else: #terminal state
-                update_x = rewardd
-                update_y = rewardd
-            '''
-                
-            y[0][int(actionn[0,0])]    = update_x
-            y[0][int(self.numberofaction/2)+int(actionn[0,1])] = update_y
-            X_train.append(oldstate.reshape(self.numberofstate,))
+    
+            X_train.append(state['old'].reshape(self.numberofstate,))
             y_train.append(y.reshape(self.numberofaction,))
         
         X_train = np.array(X_train)
