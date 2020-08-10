@@ -8,6 +8,7 @@ import numpy as np
 from pygame.locals import *
 from PygameModule import *
 from Swarm_Algorithm_RuleBased import *
+from QLearningClass import *
 
 # Simulation Parameters
 number_of_particles = 51
@@ -15,6 +16,17 @@ number_of_axes      = 2
 delta_t             = 0.1
 t_final             = 1000
 wght_leader         = np.array((0.0,0.0,0.0,0.0,10.0,0.0))
+
+myagent = agent(numberofstate=10,numberofaction=62)
+
+def actions():
+    act = np.ndarray(shape=(21,2))
+    ctr = 0
+    for ii in range(0,21):
+        act[ii,0] = int(ctr)
+        act[ii,1] = (ii-10)/10
+        ctr = ctr + 1
+    return act
 
 # main function
 def main(paramaters=[19.087,77.570,74.741,49.385,50.461,31.121,715.096,

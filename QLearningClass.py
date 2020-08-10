@@ -4,11 +4,10 @@ Created on Wed Nov  8 15:13:04 2017
 """
 import sys
 import warnings
-warnings.filterwarnings("ignore")
 sys.path.append('/media/veracrypt1/DigitalTwin/modules2import/')
 from import_modules import *
 from helper_functions import *
-from keras.losses import mean_squared_error
+warnings.filterwarnings("ignore")
 
 print('Done!')
 
@@ -145,7 +144,7 @@ class agent(neuralnet):
             y[:]          = Qval['old'][:]
             dim_          = 0
             Qval['trgt']  = target_model.predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
-            for act in self.dimension:
+            for act in range(self.dimension):
                 action[act] = np.argmax(Qval['new'][0][(dim_/self.dimension)*self.numberofaction : \
                               (dim_+1/self.dimension)*self.numberofaction])
                 maxQ[act]   = Qval['trgt'][0][action[act]+(dim_/self.dimension)*self.numberofaction]
