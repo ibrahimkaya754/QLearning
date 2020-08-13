@@ -112,16 +112,16 @@ class swarm():
                     a1   = a1 + (self.member[neigbour]['position'][str(axis)] - \
                            self.member[particle]['position'][str(axis)]) / self.numberofClosestMembers
 
-                    a6   = a6 + self.targetposition[self.member[particle]['target']][axis] - self.member[particle]['position'][str(axis)]
+                    a6   = a6 + self.targetposition[self.member[particle]['target']][str(axis)] - self.member[particle]['position'][str(axis)]
 
                     v1   = v1 + (self.member[neigbour]['velocity'][str(axis)] - \
                            self.member[particle]['velocity'][str(axis)]) / self.numberofClosestMembers
 
                 vtrack = 0
                 vspp   = self._vflock * self.member[particle]['velocity'][str(axis)] / np.abs(self.member[particle]['velocity'][str(axis)])
-                awall  = Cshill * self.smooth_transfer_function(np.abs(self.self.targetposition[self.member[particle]['target']][axis] - \
-                         self.member[particle]['position'][str(axis)]),R,d) * (self._vflock * ((self.self.targetposition[self.member[particle]['target']][axis] - \
-                         self.member[particle]['position'][str(axis)]) / np.abs(self.self.targetposition[self.member[particle]['target']][axis] - \
+                awall  = Cshill * self.smooth_transfer_function(np.abs(self.targetposition[self.member[particle]['target']][str(axis)] - \
+                         self.member[particle]['position'][str(axis)]),R,d) * (self._vflock * ((self.targetposition[self.member[particle]['target']][str(axis)] - \
+                         self.member[particle]['position'][str(axis)]) / np.abs(self.targetposition[self.member[particle]['target']][str(axis)] - \
                          self.member[particle]['position'][str(axis)])) - self.member[particle]['velocity'][str(axis)])
                 
                 self.member[particle]['deltavel'][str(axis)] = self.wght[self.member[particle]['role']][5] * (v1+vspp+vtrack-self.member[particle]['velocity'][str(axis)]) + \
@@ -130,7 +130,7 @@ class swarm():
                                                                self.wght[self.member[particle]['role']][3] * a1 + self.wght[self.member[particle]['role']][4] * a6
 
                 self.member[particle]['velocity'][str(axis)] = self.member[particle]['velocity'][str(axis)] + \
-                                                               self.member[particle]['delta_vel'][str(axis)] * self.delta_t
+                                                               self.member[particle]['deltavel'][str(axis)] * self.delta_t
                 self.member[particle]['velocity'][str(axis)] = self.member[particle]['distance2target']/100 * self.member[particle]['velocity'][str(axis)]
 
                 if self.member[particle]['velocity'][str(axis)] > self._vel_max:
@@ -140,11 +140,12 @@ class swarm():
 
                 if self.member[particle]['distance2target'] <= 100:
                     self.member[particle]['velocity'][str(axis)] = self.member[particle]['distance2target']/200 *self.member[particle]['velocity'][str(axis)]
-                self.member[particle]['delta_vel'][str(axis)] = self.member[particle]['velocity'][str(axis)] * self.delta_t
+                self.member[particle]['deltavel'][str(axis)] = self.member[particle]['velocity'][str(axis)] * self.delta_t
        
-    def run(self):
-        self.algo()
-        self._distance()
+    def run(self,keepGoing):
+        if keepGoing:
+            self.algo()
+            self._distance()
 
     
     ######################### SMOOTH TRANSFER FUNCTION ########################################################################################
