@@ -65,7 +65,7 @@ class swarm_algorithm():
         self.velocity[self.particle,self.axes] = self.distance_to_target/100 * self.velocity[self.particle,self.axes]
 
         if self.velocity[self.particle,self.axes]>vel_max:
-                self.velocity[self.particle,self.axes] = vel_max
+            self.velocity[self.particle,self.axes] = vel_max
         elif self.velocity[self.particle,self.axes]<-vel_max:
             self.velocity[self.particle,self.axes] = -vel_max
         '''

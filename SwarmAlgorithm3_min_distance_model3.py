@@ -8,6 +8,7 @@ import numpy as np
 from pygame.locals import *
 from PygameModule import *
 from Swarm_Algorithm_RuleBased import *
+from swarm import *
 from QLearningClass import *
 
 # Simulation Parameters
@@ -15,7 +16,7 @@ number_of_particles = 51
 number_of_axes      = 2
 delta_t             = 0.1
 t_final             = 1000
-wght_leader         = np.array((0.0,0.0,0.0,0.0,10.0,0.0))
+#wght_leader         = np.array((0.0,0.0,0.0,0.0,10.0,0.0))
 
 myagent = agent(numberofstate=10,numberofaction=62)
 
@@ -29,66 +30,67 @@ def actions():
     return act
 
 # main function
-def main(paramaters=[19.087,77.570,74.741,49.385,50.461,31.121,715.096,
-                     87.658,-8.527,9.441,-1.126,7.908,5.326,-3.060],TimeConstant=0.1):
+def main():
     wght_fllwr               = np.array((paramaters[8],paramaters[9],paramaters[10],
                                          paramaters[11],paramaters[12],paramaters[13]),dtype='double')
-    distances                = np.zeros((number_of_particles,number_of_particles*number_of_axes))
-    distances_abs            = np.zeros((number_of_particles,number_of_particles))
-    closest_distances_abs    = np.zeros((number_of_particles,number_of_particles))
-    closest_particles_abs    = np.zeros((number_of_particles,number_of_particles),dtype='int32')
-    closestneighbours        = np.zeros((number_of_particles),dtype='int16')
-    position                 = np.zeros((number_of_particles,number_of_axes)) 
-    velocity                 = np.zeros((number_of_particles,number_of_axes)) 
-    position_delta           = np.zeros((number_of_particles,number_of_axes))
+#    distances                = np.zeros((number_of_particles,number_of_particles*number_of_axes))
+#    distances_abs            = np.zeros((number_of_particles,number_of_particles))
+#    closest_distances_abs    = np.zeros((number_of_particles,number_of_particles))
+#    closest_particles_abs    = np.zeros((number_of_particles,number_of_particles),dtype='int32')
+#    closestneighbours        = np.zeros((number_of_particles),dtype='int16')
+#    position                 = np.zeros((number_of_particles,number_of_axes)) 
+#    velocity                 = np.zeros((number_of_particles,number_of_axes)) 
+#    position_delta           = np.zeros((number_of_particles,number_of_axes))
     dist_twp                 = np.zeros((number_of_particles-1,1))
 
     screen_size = [3000, 1300]
-    screen = pygame.display.set_mode(tuple(screen_size))
-    pygame.display.set_caption("Swarm")
+#    screen = pygame.display.set_mode(tuple(screen_size))
+#    pygame.display.set_caption("Swarm")
     
 #     xtrg              = [2200.0,650.0] + np.round(np.multiply(np.subtract(screen_size,[2700,1200]),[np.random.random()]))
     xtrg              = [2400,200]
     list_min_distance = []
     list_ave_distance = []
             
-    background = pygame.Surface(screen.get_size())
-    background.fill((255, 255, 255))
-    screen.blit(background, (0, 0))
+#    background = pygame.Surface(screen.get_size())
+#    background.fill((255, 255, 255))
+#    screen.blit(background, (0, 0))
     
-    particles = np.zeros((number_of_particles),dtype = particle)
-    for ii in range(number_of_particles-2):
-        particles[ii]  = particle(screen, background, color =0)
-        position[ii,0] = particles[ii].positionx
-        position[ii,1] = particles[ii].positiony
-        velocity[ii,0] = particles[ii].velx
-        velocity[ii,1] = particles[ii].vely
-    for ii in range(number_of_particles-2,number_of_particles-1):
-        particles[ii]  = particle(screen, background, color =1)
-        position[ii,0] = particles[ii].positionx
-        position[ii,1] = particles[ii].positiony
-        velocity[ii,0] = particles[ii].velx
-        velocity[ii,1] = particles[ii].vely
-    for ii in range(number_of_particles-1,number_of_particles):
-        particles[ii]  = particle(screen, background, color =2)
-        particles[ii].positionx = xtrg[0]
-        particles[ii].positiony = xtrg[1]
-        position[ii,0] = particles[ii].positionx
-        position[ii,1] = particles[ii].positiony
-        velocity[ii,0] = particles[ii].velx
-        velocity[ii,1] = particles[ii].vely
+#    particles = np.zeros((number_of_particles),dtype = particle)
     
-    dist = distance(population_number=number_of_particles,dimension=number_of_axes,
-                    distances=distances,distances_abs=distances_abs,
-                    position=position,
-                    closest_distances_abs=closest_distances_abs,closest_particles_abs=closest_particles_abs,
-                    closestneighbours=closestneighbours)
+    particles = swarm(screensize=[1500,800])
+#    for ii in range(number_of_particles-2):
+#        particles[ii]  = particle(screen, background, color =0)
+#        position[ii,0] = particles[ii].positionx
+#        position[ii,1] = particles[ii].positiony
+#        velocity[ii,0] = particles[ii].velx
+#        velocity[ii,1] = particles[ii].vely
+#    for ii in range(number_of_particles-2,number_of_particles-1):
+#        particles[ii]  = particle(screen, background, color =1)
+#        position[ii,0] = particles[ii].positionx
+#        position[ii,1] = particles[ii].positiony
+#        velocity[ii,0] = particles[ii].velx
+#        velocity[ii,1] = particles[ii].vely
+#    for ii in range(number_of_particles-1,number_of_particles):
+#        particles[ii]  = particle(screen, background, color =2)
+#        particles[ii].positionx = xtrg[0]
+#        particles[ii].positiony = xtrg[1]
+#        position[ii,0] = particles[ii].positionx
+#        position[ii,1] = particles[ii].positiony
+#        velocity[ii,0] = particles[ii].velx
+#        velocity[ii,1] = particles[ii].vely
     
-    distances,distances_abs,closest_distances_abs,closest_particles_abs,closestneighbours = dist.find_distances()
-    swarm_algo_follower = swarm_algorithm(params=paramaters)
-    swarm_algo_leader   = swarm_algorithm(params=paramaters)
+#    dist = distance(population_number=number_of_particles,dimension=number_of_axes,
+#                    distances=distances,distances_abs=distances_abs,
+#                    position=position,
+#                    closest_distances_abs=closest_distances_abs,closest_particles_abs=closest_particles_abs,
+#                    closestneighbours=closestneighbours)
     
-    allSprites = pygame.sprite.Group(particles[:]) # Grouping the objects to use the uniform method
+#    distances,distances_abs,closest_distances_abs,closest_particles_abs,closestneighbours = dist.find_distances()
+#    swarm_algo_follower = swarm_algorithm(params=paramaters)
+#    swarm_algo_leader   = swarm_algorithm(params=paramaters)
+    
+#    allSprites = pygame.sprite.Group(particles[:]) # Grouping the objects to use the uniform method
     clock = pygame.time.Clock()
     time1 = time.process_time()
     keepGoing = True
