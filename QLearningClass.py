@@ -4,16 +4,17 @@ Created on Wed Nov  8 15:13:04 2017
 """
 import sys
 import warnings
-sys.path.append('/media/veracrypt1/DigitalTwin/modules2import/')
+sys.path.append('/Users/ibrahimkaya/OneDrive/ikaya_onedrive/Scripts/modules2import')
 from import_modules import *
 from helper_functions import *
 warnings.filterwarnings("ignore")
 
 print('Done!')
 
+'''
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
-
+'''
 class neuralnet():
     def __init__(self, numberofstate, numberofaction, 
                  activation_func, trainable_layer, initializer,
@@ -39,21 +40,18 @@ class neuralnet():
             model_name = 'model'+str(ii+1)
             model_path = os.getcwd()+"/" + model_name + '.hdf5'
             L1 = Dense(self.list_nn[0], activation=self.activation_func,
-                       kernel_initializer=self.init, trainable = self.trainable_layer,
-                       kernel_regularizer=regularizers.l2(self.regularization))(self.input)
+                       kernel_initializer=self.init, trainable = self.trainable_layer)(self.input)
 
             for ii in range(1,len(self.list_nn)):
                 L1 = Dense(self.list_nn[ii], activation=self.activation_func, trainable = self.trainable_layer,
-                           kernel_initializer=self.init,
-                           kernel_regularizer=regularizers.l2(self.regularization))(L1)    
+                           kernel_initializer=self.init)(L1)    
 
 
             LOut  = Dense(self.numberofaction, activation='linear', name='action'+str(ii+1),
-                          kernel_initializer=self.init,
-                          kernel_regularizer=regularizers.l2(self.regularization))(L1)
+                          kernel_initializer=self.init)(L1)
             
             model = Model(inputs=self.input, outputs=LOut)
-            plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
+            #plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
             print('\n%s with %s params created' % (model_name,model.count_params()))
 
             self.model[model_name] = { 'model_name'    : model_name,
