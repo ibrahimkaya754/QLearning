@@ -35,6 +35,7 @@ class neuralnet():
         self.model            = {}
         self.input            = Input(shape=(self.numberofstate,), name='states')
 
+        print('\nCreating RL Agents\n')
         for ii in range(self.numberofmodels):
             model_name = 'model'+str(ii+1)
             model_path = os.getcwd()+"/" + model_name + '.hdf5'
@@ -55,7 +56,6 @@ class neuralnet():
             model = Model(inputs=self.input, outputs=LOut)
             plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
             print('\n%s with %s params created' % (model_name,model.count_params()))
-
             self.model[model_name] = { 'model_name'    : model_name,
                                        'model_path'    : model_path,
                                        'model_network' : model,
@@ -77,7 +77,8 @@ class neuralnet():
                                                                                     + 'best_model_mtd' + '.hdf5'
                         self.model['model1']['best']['model_network']['maxtime']  = load_model(os.getcwd()+"/" \
                                                                                     + 'best_model_mtd' + '.hdf5')
-    
+        print('\n-----------------------')
+
     def __describe__(self):
         return self.description
      
@@ -93,13 +94,14 @@ class neuralnet():
             print('\nModel Description: '+self.__describe__())
 
 class agent(neuralnet):
-    def __init__(self, numberofstate, numberofaction, activation_func='elu', 
-                 trainable_layer= True, initializer= 'he_normal', list_nn= [250,150], 
+    def __init__(self, numberofstate, numberofaction, activation_func='elu', trainable_layer= True, 
+                 initializer= 'he_normal', list_nn= [250,150], 
                  load_saved_model= False, location='./', buffer= 50000, annealing= 1000, 
-                 batchSize= 100, gamma= 0.95, tau= 0.001, numberofmodels= 5, dimension= 2):
+                 batchSize= 100, gamma= 0.95, tau= 0.001, numberofmodels= 2, dimension= 2):
         
-        super().__init__(numberofstate, numberofaction, activation_func, trainable_layer, initializer,
-                         list_nn, load_saved_model, numberofmodels)
+        super().__init__(numberofstate=numberofstate, numberofaction=numberofaction, activation_func=activation_func,
+                         trainable_layer=trainable_layer, initializer=initializer,list_nn=list_nn, 
+                         load_saved_model=load_saved_model, numberofmodels=numberofmodels)
         
         self.epsilon                  = 1.0
         self.location                 = location
@@ -111,17 +113,22 @@ class agent(neuralnet):
         self.sayac                    = 0
         self.tau                      = tau
         self.dimension                = dimension
+        self.state                    = None
+        self.action                   = None
+        self.reward                   = None
+        self.newstate                 = None
+        self.done                     = False
         
-    def replay_list(self, state, action, reward, newstate, done):
+    def replay_list(self):
         if len(self.replay) < self.buffer: #if buffer not filled, add to it
-            self.replay.append((state, action, reward, newstate, done))
+            self.replay.append((self.state, self.action, self.reward, self.newstate, self.done))
             print("buffer_size = ",len(self.replay))
         else: #if buffer full, overwrite old values
             if (self.sayac < (self.buffer-1)):
                 self.sayac = self.sayac + 1
             else:
                 self.sayac = 0
-            self.replay[self.sayac] = (state, action, reward, newstate, done)
+            self.replay[self.sayac] = (self.state, self.action, self.reward, self.newstate, self.done)
             print("sayac = ",self.sayac)
 
     def remember(self,main_model,target_model):
