@@ -32,15 +32,64 @@ screen_size       = [3000,1800]
 xtrg              = [1500,900]
 list_min_distance = []
 list_ave_distance = []
-particles         = swarm(number_of_particles=50,screensize=screen_size,target_location=xtrg,display=True,CommRng=100)
-myagent           = agent(numberofstate=10,numberofaction=62)
+particles         = swarm(number_of_particles=50,screensize=screen_size,target_location=xtrg,
+                          display=True,CommRng=100)
 rlagent           = [key for key in particles.member.keys() if particles.member[key]['role']=='rlagent'][0]
+leader            = particles.leader
+numberofneighbour = 5
+numberofleader    = 1
 clock             = pygame.time.Clock()
 keepGoing         = True
 iter , t          = 0 , 0
 
+### The multiplayer 2 below is for 'position' and 'velocity' ###
+print('----------------------------------------------------------------------------')
+print('There will be %s states, %s for relative velocity, %s for relative position' % \
+      (particles.dim*(numberofneighbour+numberofleader)*2,\
+      particles.dim*(numberofneighbour+numberofleader),\
+      particles.dim*(numberofneighbour+numberofleader)))
+print('----------------------------------------------------------------------------')
+### Some states are from the closest leader ###
+print('%s of the states are gathered from the closest leader of the swarm' % (numberofleader*particles.dim*2))
+print('----------------------------------------------------------------------------')
+action            = actions()  
+myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofaction=len(action))
+#################################################################
+### States are appended to the "states list" ###
+def stateappend(state):
+    state = []
+    for relpos,relvel in zip(list(particles.member[rlagent]['relative_position'].values())[0:numberofneighbour],\
+                             list(particles.member[rlagent]['relative_velocity'].values())[0:numberofneighbour]):
+        for pos,vel in zip(relpos.values(),relvel.values()):
+            state.append(pos)
+            state.append(vel)
+
+    for relpos,relvel in zip(list(particles.member[rlagent]['distance2leader'].values()),\
+        list(particles.member[rlagent]['velocity2leader'].values())):
+        state.append(relpos)
+        state.append(relvel)
+    state = np.array(state)
+    return state
+myagent.state = stateappend(myagent.state)
+###############################################
+
 while keepGoing:
-    particles.run(keepGoing=True)
+    particles.rulebasedalgo()
+
+    qval = myagent.model['model1']['model_network'].predict(myagent.state.reshape(1,myagent.numberofstate))
+    for dim in range(particles.dim):
+        if random.random() < myagent.epsilon:
+            myagent.action[0,dim] = np.random.randint(0,myagent.numberofaction)
+        else:
+            myagent.action[0,dim] = int(np.argmax(qval[dim]))
+        particles.member[rlagent]['deltavel'][str(dim)] = action[myagent.action[0,dim]][1]
+    
+    particles.update(keepGoing=keepGoing)
+    myagent.newstate = stateappend(myagent.newstate)
+    myagent.reward = 0
+    myagent.done   = False
+    myagent.replay_list()
+    myagent.state  = myagent.newstate
     remainder = iter % 100  
     if remainder == 0:
         print('time = ',t,' s ', ' target_pos = ', xtrg)   

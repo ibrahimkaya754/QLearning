@@ -6,7 +6,8 @@ import math
 from matplotlib import pyplot as plt
 
 class swarm():
-    def __init__(self, screensize, target_location, number_of_particles=20, display=False, dim=2, CommRng= 200):
+    def __init__(self, screensize, target_location, number_of_particles=20, display=False, dim=2, 
+                       CommRng= 200, delta_t= 0.1, TimeConstant=0.01):
         self.screensize   = screensize
         self.nop          = number_of_particles
         self.display      = display
@@ -16,6 +17,8 @@ class swarm():
         self.iteration_no = 0
         self.dim          = 2        # 2 dimensional motion
         self.CommRng      = CommRng  # Communication Range
+        self.delta_t      = delta_t
+        self.TimeConstant = TimeConstant
         self.trgt_loc     = {str(ii): target_location[ii] for ii in range(self.dim)}
         self.__coefficients_()
         self.wght         = {'follower': [self.params[ii] for ii in range(8,14)],
@@ -51,7 +54,7 @@ class swarm():
         self.color                              = {'leader'   : self.BLACK,
                                                    'follower' : self.BLUE,
                                                    'rlagent'  : self.RED}
-        self._distance()
+        self.__distance()
         print('\n-----------------------')
         print('SUMMARY FOR PARTICLES')
         print('-----------------------\n')
@@ -71,7 +74,7 @@ class swarm():
         self.BLACK  = (0,0,0)
         self.RED    = (255,0,0)
             
-    def _distance(self):
+    def __distance(self):
         '''calculates the distances between the members of the swarm'''
         for ii in range(self.nop):
             self.member[str(ii)]['distance']            = {str(jj): {str(kk): self.member[str(ii)]['position'][str(kk)]-\
@@ -95,22 +98,27 @@ class swarm():
                                                           ([self.member[str(ii)]['position'][str(jj)] -\
                                                           self.targetposition[self.member[str(ii)]['target']][str(jj)] \
                                                           for jj in range(self.dim)])
-            ### Relative Velocity and Position are found according to the closest neighbours                 
+            ### Relative Velocity and Position are found according to the closest neighbours and the leader                
             self.member[str(ii)]['relative_velocity']   = {neighbor: {str(kk): self.member[str(ii)]['velocity'][str(kk)]-\
                                                                                self.member[neighbor]['velocity'][str(kk)] \
                                                                                for kk in range(self.dim)} \
-                                                                    for neighbor in self.member[str(ii)]['closest_neighbours'][1:]}
+                                                                     for neighbor in self.member[str(ii)]['closest_neighbours'][1:]}
 
             self.member[str(ii)]['relative_position']   = {neighbor: {str(kk): self.member[str(ii)]['position'][str(kk)]-\
                                                                                self.member[neighbor]['position'][str(kk)] \
                                                                                for kk in range(self.dim)} \
-                                                                    for neighbor in self.member[str(ii)]['closest_neighbours'][1:]}
+                                                                     for neighbor in self.member[str(ii)]['closest_neighbours'][1:]}
+                                    
+            self.member[str(ii)]['distance2leader']     = {str(kk): self.member[str(ii)]['position'][str(kk)]-\
+                                                                    self.member[self.leader]['position'][str(kk)] \
+                                                                    for kk in range(self.dim)}
+
+            self.member[str(ii)]['velocity2leader']     = {str(kk): self.member[str(ii)]['velocity'][str(kk)]-\
+                                                                    self.member[self.leader]['velocity'][str(kk)] \
+                                                                    for kk in range(self.dim)}
     
     ### Rule Based Algo based on Potential Field 170820 ###
-    def rulebasedalgo(self, delta_t= 0.1, TimeConstant=0.01):
-        self.delta_t                    = delta_t
-        self.TimeConstant               = TimeConstant
-        
+    def rulebasedalgo(self):       
         for axis in range(self.dim):
             for particle in self.member.keys():
                 if self.member[particle]['role'] != 'rlagent':
@@ -147,39 +155,42 @@ class swarm():
                             self.member[particle]['position'][str(axis)])) - self.member[particle]['velocity'][str(axis)])
                     
                     self.member[particle]['deltavel'][str(axis)] = self.wght[self.member[particle]['role']][5] * (v1+vspp+vtrack-self.member[particle]['velocity'][str(axis)]) + \
-                                                                self.wght[self.member[particle]['role']][0] * apot + self.wght[self.member[particle]['role']][1] * aslp + \
-                                                                self.wght[self.member[particle]['role']][2] * awall + \
-                                                                self.wght[self.member[particle]['role']][3] * a1 + self.wght[self.member[particle]['role']][4] * a6
+                                                                   self.wght[self.member[particle]['role']][0] * apot + self.wght[self.member[particle]['role']][1] * aslp + \
+                                                                   self.wght[self.member[particle]['role']][2] * awall + \
+                                                                   self.wght[self.member[particle]['role']][3] * a1 + self.wght[self.member[particle]['role']][4] * a6
+ 
+    ### Velocity Update ###
+    def update(self,keepGoing):
+        self.keepGoing = keepGoing
+        for axis in range(self.dim):
+            for particle in self.member.keys():
+                self.member[particle]['velocity'][str(axis)] = self.member[particle]['velocity'][str(axis)] + \
+                                                               self.member[particle]['deltavel'][str(axis)] * self.delta_t
 
-                    self.member[particle]['velocity'][str(axis)] = self.member[particle]['velocity'][str(axis)] + \
-                                                                self.member[particle]['deltavel'][str(axis)] * self.delta_t
-                    self.member[particle]['velocity'][str(axis)] = self.member[particle]['distance2target']/100 * self.member[particle]['velocity'][str(axis)]
+                if self.member[particle]['velocity'][str(axis)] > self._vel_max:
+                    self.member[particle]['velocity'][str(axis)] = self._vel_max
+                elif self.member[particle]['velocity'][str(axis)] < -self._vel_max:
+                    self.member[particle]['velocity'][str(axis)] = -self._vel_max
 
-                    if self.member[particle]['velocity'][str(axis)] > self._vel_max:
-                        self.member[particle]['velocity'][str(axis)] = self._vel_max
-                    elif self.member[particle]['velocity'][str(axis)] < -self._vel_max:
-                        self.member[particle]['velocity'][str(axis)] = -self._vel_max
-
-                    if self.member[particle]['distance2target'] <= 100:
-                        self.member[particle]['velocity'][str(axis)] = self.member[particle]['distance2target']/200 *self.member[particle]['velocity'][str(axis)]
-                    
-                    self.member[particle]['deltapos'][str(axis)] = self.member[particle]['velocity'][str(axis)] * self.delta_t
-                    self.member[particle]['position'][str(axis)] = self.member[particle]['position'][str(axis)] + self.member[particle]['deltapos'][str(axis)]
-                    self.member[particle]['center']              = (int(np.round(self.member[particle]['position']['0'])),
-                                                                    int(np.round(self.member[particle]['position']['1'])))
+                if self.member[particle]['distance2target'] <= 100:
+                    self.member[particle]['velocity'][str(axis)] = self.member[particle]['distance2target']/200 *self.member[particle]['velocity'][str(axis)]
+                
+                self.member[particle]['deltapos'][str(axis)] = self.member[particle]['velocity'][str(axis)] * self.delta_t
+                self.member[particle]['position'][str(axis)] = self.member[particle]['position'][str(axis)] + self.member[particle]['deltapos'][str(axis)]
+                self.member[particle]['center']              = (int(np.round(self.member[particle]['position']['0'])),
+                                                                int(np.round(self.member[particle]['position']['1'])))
             
                 pygame.draw.circle(self.screen,self.color[self.member[particle]['role']],self.member[particle]['center'],2)
-            
+        if self.keepGoing:
+            self.__display()
+            self.__distance()
+
     def __display(self):
         if self.display:
             pygame.display.flip()     
             self.screen.fill(self.WHITE)
     
-    def run(self,keepGoing):
-        if keepGoing:
-            self.rulebasedalgo()
-            self.__display()
-            self._distance()
+
 
     ######################### SMOOTH TRANSFER FUNCTION ########################################################################################
     def smooth_transfer_function(self,x,R,d):

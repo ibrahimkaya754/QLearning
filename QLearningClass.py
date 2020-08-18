@@ -17,7 +17,7 @@ config.gpu_options.allow_growth = True
 class neuralnet():
     def __init__(self, numberofstate, numberofaction, 
                  activation_func, trainable_layer, initializer,
-                 list_nn, load_saved_model, numberofmodels):
+                 list_nn, load_saved_model, numberofmodels, dim):
         
         self.activation_func  = activation_func
         self.trainable_layer  = trainable_layer
@@ -34,8 +34,10 @@ class neuralnet():
         self.loss             = mean_squared_error
         self.model            = {}
         self.input            = Input(shape=(self.numberofstate,), name='states')
+        self.dim              = dim
 
         print('\nCreating RL Agents\n')
+        LOut = {}
         for ii in range(self.numberofmodels):
             model_name = 'model'+str(ii+1)
             model_path = os.getcwd()+"/" + model_name + '.hdf5'
@@ -48,12 +50,12 @@ class neuralnet():
                            kernel_initializer=self.init,
                            kernel_regularizer=regularizers.l2(self.regularization))(L1)    
 
-
-            LOut  = Dense(self.numberofaction, activation='linear', name='action'+str(ii+1),
-                          kernel_initializer=self.init,
-                          kernel_regularizer=regularizers.l2(self.regularization))(L1)
+            for dimension in range(self.dim):
+                LOut[str(dimension)]  = Dense(self.numberofaction, activation='linear', name='action'+str(dimension),
+                            kernel_initializer=self.init,
+                            kernel_regularizer=regularizers.l2(self.regularization))(L1)
             
-            model = Model(inputs=self.input, outputs=LOut)
+            model = Model(inputs=self.input, outputs=[LOut[str(ii)] for ii in range(self.dim)])
             plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
             print('\n%s with %s params created' % (model_name,model.count_params()))
             self.model[model_name] = { 'model_name'    : model_name,
@@ -101,7 +103,7 @@ class agent(neuralnet):
         
         super().__init__(numberofstate=numberofstate, numberofaction=numberofaction, activation_func=activation_func,
                          trainable_layer=trainable_layer, initializer=initializer,list_nn=list_nn, 
-                         load_saved_model=load_saved_model, numberofmodels=numberofmodels)
+                         load_saved_model=load_saved_model, numberofmodels=numberofmodels, dim=dimension)
         
         self.epsilon                  = 1.0
         self.location                 = location
@@ -113,8 +115,8 @@ class agent(neuralnet):
         self.sayac                    = 0
         self.tau                      = tau
         self.dimension                = dimension
-        self.state                    = None
-        self.action                   = None
+        self.state                    = []
+        self.action                   = np.ndarray(shape=(1,self.dimension),dtype='int8')
         self.reward                   = None
         self.newstate                 = None
         self.done                     = False
@@ -144,7 +146,7 @@ class agent(neuralnet):
         update       = {}
         for memory in minibatch:
             #Get max_Q(S',a)
-            state['old'], actionn, reward, state['new'], done = memory
+            state['old'], act, reward, state['new'], done = memory
             for key in state.keys():
                 Qval[key] = model.predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
             y             = np.zeros((1,self.numberofaction))
@@ -161,7 +163,7 @@ class agent(neuralnet):
                 else:
                     update[act] = reward
         
-                y[0][actionn[0,dim_]+(dim_/self.dimension)*self.numberofaction] = update[act]
+                y[0][act[0,dim_]+(dim_/self.dimension)*self.numberofaction] = update[act]
                 dim_                                                            = dim_ + 1
     
             X_train.append(state['old'].reshape(self.numberofstate,))
