@@ -24,8 +24,9 @@ class swarm():
         self.wght         = {'follower': [self.params[ii] for ii in range(8,14)],
                              'leader'  : np.array((0.0,0.0,0.0,0.0,10.0,0.0)),
                              'rlagent' : 'no weights'}
+        self.screen       = pygame.display.set_mode((self.screensize[0],self.screensize[1]))
+
         if self.display:
-            self.screen       = pygame.display.set_mode((self.screensize[0],self.screensize[1]))
             pygame.display.set_caption("Swarm System")
             self.screen.fill(self.WHITE)
                     

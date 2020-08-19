@@ -4,16 +4,13 @@ Created on Wed Nov  8 15:13:04 2017
 """
 import sys
 import warnings
-sys.path.append('/media/veracrypt1/DigitalTwin/modules2import/')
+sys.path.append('/Users/ibrahimkaya/OneDrive/ikaya_onedrive/Scripts/modules2import')
 from import_modules import *
 from helper_functions import *
 warnings.filterwarnings("ignore")
 
 print('Done!')
 
-
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
 class neuralnet():
     def __init__(self, numberofstate, numberofaction, 
                  activation_func, trainable_layer, initializer,
@@ -31,7 +28,7 @@ class neuralnet():
         self.load_saved_model = load_saved_model
         self.total_layer_no   = len(self.list_nn)+1
         self.numberofmodels   = numberofmodels
-        self.loss             = mean_squared_error
+        self.loss             = huber_loss
         self.model            = {}
         self.input            = Input(shape=(self.numberofstate,), name='states')
         self.dim              = dim

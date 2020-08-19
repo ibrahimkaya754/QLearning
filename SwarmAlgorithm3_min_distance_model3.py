@@ -2,7 +2,7 @@
 Author: ikaya
 '''
 # Import neccessary modules
-
+#%%
 import time
 import math
 import matplotlib.pyplot as plt
@@ -12,13 +12,13 @@ import numpy as np
 from pygame.locals import *
 from swarm import *
 from QLearningClass import *
-
+#%%
 # Simulation Parameters
 number_of_particles = 51
 number_of_axes      = 2
 delta_t             = 0.1
 t_final             = 1000
-
+#%%
 def actions():
    act = np.ndarray(shape=(21,2))
    ctr = 0
@@ -27,7 +27,7 @@ def actions():
        act[ii,1] = (ii-10)/10
        ctr = ctr + 1
    return act
-
+#%%
 screen_size       = [1000,600]
 xtrg              = [500,300]
 list_min_distance = []
@@ -41,7 +41,7 @@ numberofleader    = 1
 clock             = pygame.time.Clock()
 keepGoing         = True
 iter , t          = 0 , 0
-
+#%%
 ### The multiplayer 2 below is for 'position' and 'velocity' ###
 print('----------------------------------------------------------------------------')
 print('There will be %s states, %s for relative velocity, %s for relative position' % \
@@ -55,6 +55,7 @@ print('-------------------------------------------------------------------------
 action            = actions()  
 myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofaction=len(action))
 #################################################################
+#%%
 ### States are appended to the "states list" ###
 def stateappend(state):
     state = []
@@ -72,7 +73,7 @@ def stateappend(state):
     return state
 myagent.state = stateappend(myagent.state)
 ###############################################
-
+#%%
 while keepGoing:
     particles.rulebasedalgo()
 
@@ -96,7 +97,7 @@ while keepGoing:
     t = t + delta_t
     if t >= t_final:
         keepGoing = False
-            
+#%%            
 print('\n------------------------------------')
 for key in particles.member.keys():
     print('Particle id       : %s' % (key))
@@ -109,3 +110,5 @@ for key in particles.member.keys():
     print('weigths           : %s' % (particles.wght[particles.member[key]['role']]))
     print('particles in rng  : %s' % (particles.member[key]['PrtclsInRng']))
     print('------------------------------------')
+
+# %%
