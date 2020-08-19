@@ -17,7 +17,7 @@ config.gpu_options.allow_growth = True
 class neuralnet():
     def __init__(self, numberofstate, numberofaction, 
                  activation_func, trainable_layer, initializer,
-                 list_nn, load_saved_model, numberofmodels):
+                 list_nn, load_saved_model, numberofmodels, dim):
         
         self.activation_func  = activation_func
         self.trainable_layer  = trainable_layer
@@ -34,7 +34,10 @@ class neuralnet():
         self.loss             = mean_squared_error
         self.model            = {}
         self.input            = Input(shape=(self.numberofstate,), name='states')
+        self.dim              = dim
 
+        print('\nCreating RL Agents\n')
+        LOut = {}
         for ii in range(self.numberofmodels):
             model_name = 'model'+str(ii+1)
             model_path = os.getcwd()+"/" + model_name + '.hdf5'
@@ -47,15 +50,14 @@ class neuralnet():
                            kernel_initializer=self.init,
                            kernel_regularizer=regularizers.l2(self.regularization))(L1)    
 
-
-            LOut  = Dense(self.numberofaction, activation='linear', name='action'+str(ii+1),
-                          kernel_initializer=self.init,
-                          kernel_regularizer=regularizers.l2(self.regularization))(L1)
+            for dimension in range(self.dim):
+                LOut[str(dimension)]  = Dense(self.numberofaction, activation='linear', name='action'+str(dimension),
+                            kernel_initializer=self.init,
+                            kernel_regularizer=regularizers.l2(self.regularization))(L1)
             
-            model = Model(inputs=self.input, outputs=LOut)
+            model = Model(inputs=self.input, outputs=[LOut[str(ii)] for ii in range(self.dim)])
             plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
             print('\n%s with %s params created' % (model_name,model.count_params()))
-
             self.model[model_name] = { 'model_name'    : model_name,
                                        'model_path'    : model_path,
                                        'model_network' : model,
@@ -77,7 +79,8 @@ class neuralnet():
                                                                                     + 'best_model_mtd' + '.hdf5'
                         self.model['model1']['best']['model_network']['maxtime']  = load_model(os.getcwd()+"/" \
                                                                                     + 'best_model_mtd' + '.hdf5')
-    
+        print('\n-----------------------')
+
     def __describe__(self):
         return self.description
      
@@ -93,13 +96,14 @@ class neuralnet():
             print('\nModel Description: '+self.__describe__())
 
 class agent(neuralnet):
-    def __init__(self, numberofstate, numberofaction, activation_func='elu', 
-                 trainable_layer= True, initializer= 'he_normal', list_nn= [250,150], 
+    def __init__(self, numberofstate, numberofaction, activation_func='elu', trainable_layer= True, 
+                 initializer= 'he_normal', list_nn= [250,150], 
                  load_saved_model= False, location='./', buffer= 50000, annealing= 1000, 
-                 batchSize= 100, gamma= 0.95, tau= 0.001, numberofmodels= 5, dimension= 2):
+                 batchSize= 100, gamma= 0.95, tau= 0.001, numberofmodels= 2, dimension= 2):
         
-        super().__init__(numberofstate, numberofaction, activation_func, trainable_layer, initializer,
-                         list_nn, load_saved_model, numberofmodels)
+        super().__init__(numberofstate=numberofstate, numberofaction=numberofaction, activation_func=activation_func,
+                         trainable_layer=trainable_layer, initializer=initializer,list_nn=list_nn, 
+                         load_saved_model=load_saved_model, numberofmodels=numberofmodels, dim=dimension)
         
         self.epsilon                  = 1.0
         self.location                 = location
@@ -111,17 +115,22 @@ class agent(neuralnet):
         self.sayac                    = 0
         self.tau                      = tau
         self.dimension                = dimension
+        self.state                    = []
+        self.action                   = np.ndarray(shape=(1,self.dimension),dtype='int8')
+        self.reward                   = None
+        self.newstate                 = None
+        self.done                     = False
         
-    def replay_list(self, state, action, reward, newstate, done):
+    def replay_list(self):
         if len(self.replay) < self.buffer: #if buffer not filled, add to it
-            self.replay.append((state, action, reward, newstate, done))
+            self.replay.append((self.state, self.action, self.reward, self.newstate, self.done))
             print("buffer_size = ",len(self.replay))
         else: #if buffer full, overwrite old values
             if (self.sayac < (self.buffer-1)):
                 self.sayac = self.sayac + 1
             else:
                 self.sayac = 0
-            self.replay[self.sayac] = (state, action, reward, newstate, done)
+            self.replay[self.sayac] = (self.state, self.action, self.reward, self.newstate, self.done)
             print("sayac = ",self.sayac)
 
     def remember(self,main_model,target_model):
@@ -137,7 +146,7 @@ class agent(neuralnet):
         update       = {}
         for memory in minibatch:
             #Get max_Q(S',a)
-            state['old'], actionn, reward, state['new'], done = memory
+            state['old'], act, reward, state['new'], done = memory
             for key in state.keys():
                 Qval[key] = model.predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
             y             = np.zeros((1,self.numberofaction))
@@ -154,7 +163,7 @@ class agent(neuralnet):
                 else:
                     update[act] = reward
         
-                y[0][actionn[0,dim_]+(dim_/self.dimension)*self.numberofaction] = update[act]
+                y[0][act[0,dim_]+(dim_/self.dimension)*self.numberofaction] = update[act]
                 dim_                                                            = dim_ + 1
     
             X_train.append(state['old'].reshape(self.numberofstate,))
