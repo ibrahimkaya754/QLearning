@@ -7,10 +7,11 @@ from matplotlib import pyplot as plt
 
 class swarm():
     def __init__(self, screensize, target_location, number_of_particles=20, display=False, dim=2, 
-                       CommRng= 200, delta_t= 0.1, TimeConstant=0.01):
+                       CommRng= 200, delta_t= 0.1, TimeConstant=0.01, summary=True):
         self.screensize   = screensize
         self.nop          = number_of_particles
         self.display      = display
+        self.summary      = summary
         self._vel_max     = 20.0
         self._vflock      = 20.0
         self.member       = {}
@@ -43,7 +44,7 @@ class swarm():
             self.member[str(ii)]['role']        = 'follower'
             self.member[str(ii)]['target']      = 'leader'
             self.member[str(ii)]['PrtclsInRng'] = 0
-        self.leader, self.rlagent               = [str(ii) for ii in np.unique(np.random.randint(self.nop,size=2))]
+        self.leader, self.rlagent               = [str(ii) for ii in range(2)]
         self.member[self.leader]['role']        = 'leader'
         self.member[self.leader]['target']      = 'target'
         self.member[self.rlagent]['role']       = 'rlagent'
@@ -55,16 +56,17 @@ class swarm():
                                                    'follower' : self.BLUE,
                                                    'rlagent'  : self.RED}
         self.__distance()
-        print('\n-----------------------')
-        print('SUMMARY FOR PARTICLES')
-        print('-----------------------\n')
-        for key in self.member.keys():
-            print('particle id : ', key)
-            print('role        : ',self.member[key]['role'])
-            print('target      : ',self.member[key]['target'])
-            print('wghts       : ',self.wght[self.member[key]['role']])
-            print('dist2wp     : ',self.member[key]['distance2target'])
-            print('-----------------------')
+        if self.summary:
+            print('\n-----------------------')
+            print('SUMMARY FOR PARTICLES')
+            print('-----------------------\n')
+            for key in self.member.keys():
+                print('particle id : ', key)
+                print('role        : ',self.member[key]['role'])
+                print('target      : ',self.member[key]['target'])
+                print('wghts       : ',self.wght[self.member[key]['role']])
+                print('dist2wp     : ',self.member[key]['distance2target'])
+                print('-----------------------')
     
     def __coefficients_(self):
         self.params = [19.087,77.570,74.741,49.385,50.461,31.121,715.096,

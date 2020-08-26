@@ -51,11 +51,11 @@ class neuralnet():
                            kernel_regularizer=regularizers.l2(self.regularization))(L1)    
 
             for dimension in range(self.dim):
-                LOut[str(dimension)]  = Dense(self.numberofaction, activation='linear', name='action'+str(dimension),
+                LOut['action'+str(dimension)]  = Dense(self.numberofaction, activation='linear', name='action'+str(dimension),
                             kernel_initializer=self.init,
                             kernel_regularizer=regularizers.l2(self.regularization))(L1)
             
-            model = Model(inputs=self.input, outputs=[LOut[str(ii)] for ii in range(self.dim)])
+            model = Model(inputs=self.input, outputs=[LOut['action'+str(dimension)] for ii in range(self.dim)])
             plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
             print('\n%s with %s params created' % (model_name,model.count_params()))
             self.model[model_name] = { 'model_name'    : model_name,
@@ -98,7 +98,7 @@ class neuralnet():
 class agent(neuralnet):
     def __init__(self, numberofstate, numberofaction, activation_func='elu', trainable_layer= True, 
                  initializer= 'he_normal', list_nn= [250,150], 
-                 load_saved_model= False, location='./', buffer= 50000, annealing= 1000, 
+                 load_saved_model= False, location='./', buffer= 50000, annealing= 110, 
                  batchSize= 100, gamma= 0.95, tau= 0.001, numberofmodels= 2, dimension= 2):
         
         super().__init__(numberofstate=numberofstate, numberofaction=numberofaction, activation_func=activation_func,
@@ -120,6 +120,10 @@ class agent(neuralnet):
         self.reward                   = None
         self.newstate                 = None
         self.done                     = False
+        self.maxtime                  = 0
+        self.maxscore                 = 0
+        self.mtd                      = False
+        self.msd                      = False
         
     def replay_list(self):
         if len(self.replay) < self.buffer: #if buffer not filled, add to it
@@ -137,8 +141,7 @@ class agent(neuralnet):
         model        = self.model[main_model]
         target_model = self.model[target_model]
         minibatch    = random.sample(self.replay, self.batchSize)
-        X_train      = []
-        y_train      = []
+
         action       = {}
         maxQ         = {}
         Qval         = {}
@@ -148,30 +151,24 @@ class agent(neuralnet):
             #Get max_Q(S',a)
             state['old'], act, reward, state['new'], done = memory
             for key in state.keys():
-                Qval[key] = model.predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
-            y             = np.zeros((1,self.numberofaction))
-            y[:]          = Qval['old'][:]
-            dim_          = 0
-            Qval['trgt']  = target_model.predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
-            for act in range(self.dimension):
-                action[act] = np.argmax(Qval['new'][0][(dim_/self.dimension)*self.numberofaction : \
-                              (dim_+1/self.dimension)*self.numberofaction])
-                maxQ[act]   = Qval['trgt'][0][action[act]+(dim_/self.dimension)*self.numberofaction]
+                Qval[key] = model['model_network'].predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
+            y             = {}
+            Qval['trgt']  = target_model['model_network'].predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
+            for dim in range(self.dimension):
+                y['action'+str(dim)] = Qval['old'][dim]
+                action[dim]          = np.argmax(Qval['new'][dim][0])
+                maxQ[dim]            = Qval['trgt'][dim][0][action[dim]]
 
                 if not done:
-                    update[act] = reward + self.gamma * maxQ[act]
+                    update[dim] = reward + self.gamma * maxQ[dim]
                 else:
-                    update[act] = reward
+                    update[dim] = reward
         
-                y[0][act[0,dim_]+(dim_/self.dimension)*self.numberofaction] = update[act]
-                dim_                                                            = dim_ + 1
-    
-            X_train.append(state['old'].reshape(self.numberofstate,))
-            y_train.append(y.reshape(self.numberofaction,))
-        
-        X_train = np.array(X_train)
-        y_train = np.array(y_train)
-        model.fit(X_train, y_train, batch_size=self.batchSize, nb_epoch=1, verbose=1)
+                y['action'+str(dim)][0][act[0,dim]] = update[dim]
+            
+        X_train = state['old'].reshape(1,self.numberofstate)
+        y_train = y
+        model['model_network'].fit(X_train, y_train, batch_size=self.batchSize, nb_epoch=1, verbose=1)
         return model
 
     def train_model(self, epoch, training_mode):
@@ -216,34 +213,36 @@ class agent(neuralnet):
             self.model['model1']['model_network'].set_weights(main_weights)
             self.model['model2']['model_network'].set_weights(target_weights)
 
-        if len(self.replay) >= self.annealing:            
+        if len(self.replay) >= self.annealing:        
             if training_mode == 1:
                 training_mode1()
             elif training_mode == 2:
                 training_mode2()
+        else:
+            print('Training will begin after %s data gathered' % (self.annealing))    
 
     def save_replay(self):
         return self.replay
         
-    def save(self, time, target_time, score, target_score, mtd= False,msd= False):
+    def save(self, time, target_time, score, target_score):
         self.model['model1']['model_network'].save(self.model['model1']['model_path'])
 
         self.model['model1']['best'] = { 'model_path'    : {'maxscore' : os.getcwd()+"/" + 'best_model_msd' + '.hdf5',
                                                             'maxtime'  : os.getcwd()+"/" + 'best_model_mtd' + '.hdf5'},
                                          'model_network' : {'maxscore' : '','maxtime'  : ''},
-                                         'mtd'           : False,
-                                         'msd'           : False,
-                                         'maxtime'       : None,
-                                         'maxscore'      : None }
-        if mtd:
-            self.model['model1']['best']['mtd']                      = True
-            self.model['model1']['best']['maxtime']                  = time
+                                         'mtd'           : self.mtd,
+                                         'msd'           : self.msd,
+                                         'maxtime'       : self.maxtime,
+                                         'maxscore'      : self.maxscore }
+        if self.mtd:
+            self.model['model1']['best']['mtd']                      = self.mtd
+            self.model['model1']['best']['maxtime']                  = self.maxtime
             self.model['model1']['best']['model_network']['maxtime'] = load_model(self.model['model1']['model_path'])
             self.model['model1']['best']['model_network']['maxtime'].save(self.model['model1']['best']['model_path']['maxtime'])
 
-        if msd:
-            self.model['model1']['best']['msd']                       = True
-            self.model['model1']['best']['maxscore']                  = score
+        if self.msd:
+            self.model['model1']['best']['msd']                       = self.msd
+            self.model['model1']['best']['maxscore']                  = self.maxscore
             self.model['model1']['best']['model_network']['maxscore'] = load_model(self.model['model1']['model_path'])
             self.model['model1']['best']['model_network']['maxscore'].save(self.model['model1']['best']['model_path']['maxscore'])
 
