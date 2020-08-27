@@ -64,21 +64,26 @@ class neuralnet():
                                        'numberofparams': model.count_params(),
                                        'compile'       : model.compile(optimizer=self.opt, 
                                                          loss=self.loss, metrics=['mse']) }
+                                       
+            self.model['model1']['best'] = { 'model_path'    : {'maxscore' : os.getcwd()+"/" + 'best_model_msd' + '.hdf5',
+                                                               'maxtime'  : os.getcwd()+"/" + 'best_model_mtd' + '.hdf5'},
+                                            'model_network' : {'maxscore' : '','maxtime'  : ''},
+                                            'mtd'           : False,
+                                            'msd'           : False,
+                                            'maxtime'       : 0,
+                                            'maxscore'      : 0 }
             if self.load_saved_model:
                 if not os.path.exists(self.model['model1']['model_path']):
                     print('There is no model saved to the related directory!')
                 else:
                     self.model[model_name]['model_network'] = load_model(self.model['model1']['model_path'])
-                    if os.path.exists(os.getcwd()+"/" + 'best_model_msd' + '.hdf5'):
-                        self.model['model1']['best']['model_path']['maxscore']    = os.getcwd()+"/" \
-                                                                                    + 'best_model_msd' + '.hdf5'
-                        self.model['model1']['best']['model_network']['maxscore'] = load_model(os.getcwd()+"/" \
-                                                                                    + 'best_model_msd' + '.hdf5')
-                    if os.path.exists(os.getcwd()+"/" + 'best_model_mtd' + '.hdf5'):
-                        self.model['model1']['best']['model_path']['maxtime']     = os.getcwd()+"/" \
-                                                                                    + 'best_model_mtd' + '.hdf5'
-                        self.model['model1']['best']['model_network']['maxtime']  = load_model(os.getcwd()+"/" \
-                                                                                    + 'best_model_mtd' + '.hdf5')
+                    self.model['model1']['best']['model_network']['maxscore'] = load_model(self.model['model1']['model_path'])
+                    self.model['model1']['best']['model_network']['maxtime']  = load_model(self.model['model1']['model_path'])
+                                            
+                    if os.path.exists(self.model['model1']['best']['model_path']['maxscore']):
+                        self.model['model1']['best']['model_network']['maxscore'] = load_model(self.model['model1']['best']['model_path']['maxscore'])
+                    if os.path.exists(self.model['model1']['best']['model_path']['maxtime']):
+                        self.model['model1']['best']['model_network']['maxtime']  = load_model(self.model['model1']['best']['model_path']['maxscore'])
         print('\n-----------------------')
 
     def __describe__(self):
@@ -116,7 +121,6 @@ class agent(neuralnet):
         self.tau                      = tau
         self.dimension                = dimension
         self.state                    = []
-        self.action                   = np.ndarray(shape=(1,self.dimension),dtype='int8')
         self.reward                   = None
         self.newstate                 = None
         self.done                     = False
@@ -125,23 +129,22 @@ class agent(neuralnet):
         self.mtd                      = False
         self.msd                      = False
         
-    def replay_list(self):
+    def replay_list(self,actionn):
         if len(self.replay) < self.buffer: #if buffer not filled, add to it
-            self.replay.append((self.state, self.action, self.reward, self.newstate, self.done))
-            print("buffer_size = ",len(self.replay))
+            self.replay.append((self.state, actionn, self.reward, self.newstate, self.done))
+            #print("buffer_size = ",len(self.replay))
         else: #if buffer full, overwrite old values
             if (self.sayac < (self.buffer-1)):
                 self.sayac = self.sayac + 1
             else:
                 self.sayac = 0
-            self.replay[self.sayac] = (self.state, self.action, self.reward, self.newstate, self.done)
-            print("sayac = ",self.sayac)
+            self.replay[self.sayac] = (self.state, actionn, self.reward, self.newstate, self.done)
+            #print("sayac = ",self.sayac)
 
     def remember(self,main_model,target_model):
         model        = self.model[main_model]
         target_model = self.model[target_model]
         minibatch    = random.sample(self.replay, self.batchSize)
-
         action       = {}
         maxQ         = {}
         Qval         = {}
@@ -156,15 +159,15 @@ class agent(neuralnet):
             Qval['trgt']  = target_model['model_network'].predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
             for dim in range(self.dimension):
                 y['action'+str(dim)] = Qval['old'][dim]
-                action[dim]          = np.argmax(Qval['new'][dim][0])
-                maxQ[dim]            = Qval['trgt'][dim][0][action[dim]]
+                action[str(dim)]     = np.argmax(Qval['new'][dim][0])
+                maxQ[str(dim)]       = Qval['trgt'][dim][0][action[str(dim)]]
 
                 if not done:
-                    update[dim] = reward + self.gamma * maxQ[dim]
+                    update[str(dim)] = reward + self.gamma * maxQ[str(dim)]
                 else:
-                    update[dim] = reward
+                    update[str(dim)] = reward
         
-                y['action'+str(dim)][0][act[0,dim]] = update[dim]
+                y['action'+str(dim)][0][act[dim]] = update[str(dim)]
             
         X_train = state['old'].reshape(1,self.numberofstate)
         y_train = y
@@ -227,13 +230,6 @@ class agent(neuralnet):
     def save(self, time, target_time, score, target_score):
         self.model['model1']['model_network'].save(self.model['model1']['model_path'])
 
-        self.model['model1']['best'] = { 'model_path'    : {'maxscore' : os.getcwd()+"/" + 'best_model_msd' + '.hdf5',
-                                                            'maxtime'  : os.getcwd()+"/" + 'best_model_mtd' + '.hdf5'},
-                                         'model_network' : {'maxscore' : '','maxtime'  : ''},
-                                         'mtd'           : self.mtd,
-                                         'msd'           : self.msd,
-                                         'maxtime'       : self.maxtime,
-                                         'maxscore'      : self.maxscore }
         if self.mtd:
             self.model['model1']['best']['mtd']                      = self.mtd
             self.model['model1']['best']['maxtime']                  = self.maxtime

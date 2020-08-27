@@ -20,20 +20,29 @@ delta_t             = 0.1
 t_final             = 1000
 
 def actions():
-   act = np.ndarray(shape=(21,2))
-   ctr = 0
-   for ii in range(0,21):
-       act[ii,0] = int(ctr)
-       act[ii,1] = (ii-10)/10
+    act = np.ndarray(shape=(29,2))
+   
+    for ii in range(0,4):
+       act[ii,0] = ii
+       act[ii,1] = -5 + ii
+    ctr = 0
+    for ii in range(4,25):
+       act[ii,0] = ii
+       act[ii,1] = (ctr-10)/10
        ctr = ctr + 1
-   return act
+    ctr = 0
+    for ii in range(25,29):
+        act[ii,0] = ii
+        act[ii,1] = ctr + 2
+        ctr = ctr + 1
+    return act
 
 screen_size       = [3000,1800]
 xtrg              = [1500,900]
 list_min_distance = []
 list_ave_distance = []
 particles         = swarm(number_of_particles=50,screensize=screen_size,target_location=xtrg,
-                          display=True,CommRng=100)
+                          display=True,CommRng=100, dim=number_of_axes)
 rlagent           = [key for key in particles.member.keys() if particles.member[key]['role']=='rlagent'][0]
 leader            = particles.leader
 numberofneighbour = 5
@@ -52,7 +61,8 @@ print('-------------------------------------------------------------------------
 print('%s of the states are gathered from the closest leader of the swarm' % (numberofleader*particles.dim*2))
 print('----------------------------------------------------------------------------')
 action            = actions()  
-myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofaction=len(action))
+myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,
+                          numberofaction=len(action),load_saved_model=False,dimension=number_of_axes)
 ################################################
 ### States are appended to the "states list" ###
 def stateappend(state):
@@ -71,20 +81,21 @@ def stateappend(state):
     return state
 ###############################################
 ### Reward Function ###
-def reward(dist2leader,dist2closest,score):
+def reward(dist2leader,dist2closest,score,time):
     if dist2leader >= 500.0 or dist2closest <=2.0:
         reward = -10000
     else:
         if dist2closest > 2.0 and dist2closest < 10.0:
-            reward = dist2closest**3
+            reward = dist2closest**3 - dist2leader
         else:
-            reward = 1000 - dist2closest**1.5
+            reward = 1000 - dist2closest**1.5 - dist2leader
     score = score + reward
-    if score <= -500000 or reward <= -10000:
+    time  = time + delta_t
+    if score <= -500000 or reward <= -10000 or time >= t_final:
         done = True
     else:
         done = False
-    return reward, score, done
+    return reward, score, done, time
 ################################################
 #%%
 for epoch in range(numberofepochs):
@@ -94,43 +105,52 @@ for epoch in range(numberofepochs):
     myagent.state = stateappend(myagent.state)
     myagent.done  = False
     t, score      = 0 , 0 
-
     while not myagent.done:
         particles.rulebasedalgo()
-
-        qval = myagent.model['model1']['model_network'].predict(myagent.state.reshape(1,myagent.numberofstate))
+        qval    = myagent.model['model1']['model_network'].predict(myagent.state.reshape(1,myagent.numberofstate))
+        actionn = []
         for dim in range(particles.dim):
-            if random.random() < myagent.epsilon:
-                myagent.action[0,dim] = np.random.randint(0,myagent.numberofaction)
+            randomnumber = random.random()
+            if  randomnumber < myagent.epsilon:
+                actionn.append(np.random.randint(0,myagent.numberofaction))
             else:
-                myagent.action[0,dim] = int(np.argmax(qval[dim]))
-            particles.member[rlagent]['deltavel'][str(dim)] = action[myagent.action[0,dim]][1]
-        
+                actionn.append(int(np.argmax(qval[dim])))
+            particles.member[rlagent]['deltavel'][str(dim)] = action[int(actionn[dim])][1]
         particles.update(keepGoing=not myagent.done)
         distance         = {'2leader'  : (lambda x: np.sqrt(x[0]**2+x[1]**2))\
                                          (list(particles.member[rlagent]['distance2leader'].values())),
                             '2closest' : particles.member[rlagent]['abs_distance_sorted'][1]}
         myagent.newstate = stateappend(myagent.newstate)
-        myagent.reward, score, myagent.done = reward(distance['2leader'],distance['2closest'],score)
-        myagent.replay_list()
+        myagent.reward, score, myagent.done, t = reward(distance['2leader'],distance['2closest'],score,t)
+        myagent.replay_list(actionn)
         myagent.state    = myagent.newstate
         myagent.epsilon  = 0.05 if myagent.epsilon<0.05 else myagent.epsilon - 1 / myagent.buffer
-        t                = t + delta_t
-        print('epoch = %s , reward = %0.2f , score = %0.2f , dist2leader = %0.2f, dist2closest = %0.2f, time = %0.1f' %\
-             (epoch,myagent.reward,score,distance['2leader'],distance['2closest'],t))
+        print('epoch= %s, reward= %0.2f, score= %0.2f, maxtime= %0.2f, maxscore= %0.2f, dist2leader= %0.2f, dist2closest= %0.2f, time= %0.1f' %\
+             (epoch,myagent.reward,score,myagent.maxtime,myagent.maxscore,distance['2leader'],distance['2closest'],t))
+        
+        if t%100 >= 0.0 and t%100 < delta_t:
+            print('\ntarget location changes\n')
+            particles.trgt_loc       = {str(ii): np.random.randint(screen_size)[ii] for ii in range(particles.dim)}
+            particles.targetposition = {'leader': particles.member[particles.leader]['position'],
+                                        'target': particles.trgt_loc}
 
     if myagent.done:
         if t > myagent.maxtime:
             myagent.maxtime  = t
             myagent.mtd      = True
+        else:
+            myagent.mtd      = False
         if score > myagent.maxscore:
             myagent.maxscore = score
             myagent.msd      = True
+        else:
+            myagent.msd      = False
         myagent.save(time=t, target_time=150, score=score, target_score=100000)
         myagent.train_model(epoch=epoch,training_mode=2)
         replay = myagent.save_replay
+        print('buffer size= %s' % (len(myagent.replay)))
         print('\n----- New Epoch ----- Epoch: %s\n' % (epoch+1))
-#%%                
+        #%%                
 print('\n------------------------------------')
 for key in particles.member.keys():
     print('Particle id       : %s' % (key))
@@ -143,3 +163,5 @@ for key in particles.member.keys():
     print('weigths           : %s' % (particles.wght[particles.member[key]['role']]))
     print('particles in rng  : %s' % (particles.member[key]['PrtclsInRng']))
     print('------------------------------------')
+
+# %%

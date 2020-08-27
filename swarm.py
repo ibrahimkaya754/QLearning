@@ -48,10 +48,10 @@ class swarm():
         self.member[self.leader]['role']        = 'leader'
         self.member[self.leader]['target']      = 'target'
         self.member[self.rlagent]['role']       = 'rlagent'
-        self.member[self.rlagent]['algo']       = {'rulebased': False,
-                                                   'rl'       : True}
         self.targetposition                     = {'leader': self.member[self.leader]['position'],
                                                    'target': self.trgt_loc}
+        self.member[self.rlagent]['algo']       = {'rulebased': False,
+                                                   'rl'       : True}
         self.color                              = {'leader'   : self.BLACK,
                                                    'follower' : self.BLUE,
                                                    'rlagent'  : self.RED}
