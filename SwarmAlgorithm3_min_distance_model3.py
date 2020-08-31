@@ -14,7 +14,7 @@ from swarm import *
 from QLearningClass import *
 
 # Simulation Parameters
-number_of_particles = 51
+number_of_particles = 24
 number_of_axes      = 2
 delta_t             = 0.1
 t_final             = 1000
@@ -38,11 +38,12 @@ def actions():
     return act
 
 screen_size       = [3000,1800]
-xtrg              = [1500,900]
+initial_location  = [2000,200]
 list_min_distance = []
 list_ave_distance = []
-particles         = swarm(number_of_particles=50,screensize=screen_size,target_location=xtrg,
-                          display=True,CommRng=100, dim=number_of_axes)
+xtrg              = [initial_location[ii] + np.random.randint([900,1400])[ii] for ii in range(number_of_axes)]
+particles         = swarm(number_of_particles=number_of_particles, screensize=screen_size, target_location=xtrg,
+                          display=True, CommRng=100, dim=number_of_axes)
 rlagent           = [key for key in particles.member.keys() if particles.member[key]['role']=='rlagent'][0]
 leader            = particles.leader
 numberofneighbour = 5
@@ -61,8 +62,8 @@ print('-------------------------------------------------------------------------
 print('%s of the states are gathered from the closest leader of the swarm' % (numberofleader*particles.dim*2))
 print('----------------------------------------------------------------------------')
 action            = actions()  
-myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,
-                          numberofaction=len(action),load_saved_model=False,dimension=number_of_axes)
+myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofmodels=5,
+                          numberofaction=len(action),load_saved_model=False,dim=number_of_axes)
 ################################################
 ### States are appended to the "states list" ###
 def stateappend(state):
@@ -91,7 +92,7 @@ def reward(dist2leader,dist2closest,score,time):
             reward = 1000 - dist2closest**1.5 - dist2leader
     score = score + reward
     time  = time + delta_t
-    if score <= -500000 or reward <= -10000 or time >= t_final:
+    if score <= -1000000 or reward <= -10000 or time >= t_final:
         done = True
     else:
         done = False
@@ -99,7 +100,8 @@ def reward(dist2leader,dist2closest,score,time):
 ################################################
 #%%
 for epoch in range(numberofepochs):
-    particles.__init__(number_of_particles=50,screensize=screen_size,target_location=xtrg,
+    xtrg          = [initial_location[ii] + np.random.randint([900,1400])[ii] for ii in range(number_of_axes)]
+    particles.__init__(number_of_particles=number_of_particles,screensize=screen_size,target_location=xtrg,
                        display=True,CommRng=100,summary=False)
     rlagent       = [key for key in particles.member.keys() if particles.member[key]['role']=='rlagent'][0]
     myagent.state = stateappend(myagent.state)
@@ -146,7 +148,10 @@ for epoch in range(numberofepochs):
         else:
             myagent.msd      = False
         myagent.save(time=t, target_time=150, score=score, target_score=100000)
-        myagent.train_model(epoch=epoch,training_mode=2)
+        try:
+            myagent.train_model(epoch=epoch,training_mode=1)
+        except:
+            print('best model does not exist')
         replay = myagent.save_replay
         print('buffer size= %s' % (len(myagent.replay)))
         print('\n----- New Epoch ----- Epoch: %s\n' % (epoch+1))

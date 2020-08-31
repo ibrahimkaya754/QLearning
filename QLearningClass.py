@@ -55,7 +55,7 @@ class neuralnet():
                             kernel_initializer=self.init,
                             kernel_regularizer=regularizers.l2(self.regularization))(L1)
             
-            model = Model(inputs=self.input, outputs=[LOut['action'+str(dimension)] for ii in range(self.dim)])
+            model = Model(inputs=self.input, outputs=[LOut['action'+str(dimension)] for dimension in range(self.dim)])
             plot_model(model,to_file=model_name+'.png', show_layer_names=True,show_shapes=True)
             print('\n%s with %s params created' % (model_name,model.count_params()))
             self.model[model_name] = { 'model_name'    : model_name,
@@ -101,14 +101,14 @@ class neuralnet():
             print('\nModel Description: '+self.__describe__())
 
 class agent(neuralnet):
-    def __init__(self, numberofstate, numberofaction, activation_func='elu', trainable_layer= True, 
+    def __init__(self, numberofstate, numberofaction, dim, activation_func='elu', trainable_layer= True, 
                  initializer= 'he_normal', list_nn= [250,150], 
-                 load_saved_model= False, location='./', buffer= 50000, annealing= 110, 
-                 batchSize= 100, gamma= 0.95, tau= 0.001, numberofmodels= 2, dimension= 2):
+                 load_saved_model= False, location='./', buffer= 50000, annealing= 5000, 
+                 batchSize= 100, gamma= 0.95, tau= 0.001, numberofmodels= 2):
         
         super().__init__(numberofstate=numberofstate, numberofaction=numberofaction, activation_func=activation_func,
                          trainable_layer=trainable_layer, initializer=initializer,list_nn=list_nn, 
-                         load_saved_model=load_saved_model, numberofmodels=numberofmodels, dim=dimension)
+                         load_saved_model=load_saved_model, numberofmodels=numberofmodels, dim=dim)
         
         self.epsilon                  = 1.0
         self.location                 = location
@@ -119,7 +119,6 @@ class agent(neuralnet):
         self.replay                   = []
         self.sayac                    = 0
         self.tau                      = tau
-        self.dimension                = dimension
         self.state                    = []
         self.reward                   = None
         self.newstate                 = None
@@ -157,7 +156,7 @@ class agent(neuralnet):
                 Qval[key] = model['model_network'].predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
             y             = {}
             Qval['trgt']  = target_model['model_network'].predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
-            for dim in range(self.dimension):
+            for dim in range(self.dim):
                 y['action'+str(dim)] = Qval['old'][dim]
                 action[str(dim)]     = np.argmax(Qval['new'][dim][0])
                 maxQ[str(dim)]       = Qval['trgt'][dim][0][action[str(dim)]]
@@ -177,7 +176,7 @@ class agent(neuralnet):
     def train_model(self, epoch, training_mode):
         def training_mode1():
             self.remember('model1','model2')
-            if epoch % 20 == 0:
+            if epoch % 10 == 0:
                 counter1 = 0
                 counter2 = counter1 + 1
                 for _ in range(self.numberofmodels):
