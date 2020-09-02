@@ -63,7 +63,7 @@ print('%s of the states are gathered from the closest leader of the swarm' % (nu
 print('----------------------------------------------------------------------------')
 action            = actions()  
 myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofmodels=5,
-                          numberofaction=len(action),load_saved_model=False,dim=number_of_axes)
+                          numberofaction=len(action),load_saved_model=True,dim=number_of_axes)
 ################################################
 ### States are appended to the "states list" ###
 def stateappend(state):

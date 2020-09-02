@@ -85,14 +85,13 @@ class neuralnet():
                     if os.path.exists(self.model['model1']['best']['model_path']['maxtime']):
                         self.model['model1']['best']['model_network']['maxtime']  = load_model(self.model['model1']['best']['model_path']['maxscore'])
         print('\n-----------------------')
-
+        self.listOfmodels = [key for key in self.model.keys()]
     def __describe__(self):
         return self.description
      
     def summary(self):
         for key in self.model.keys():
             self.model[key]['model_network'].summary()
-            self.listOfmodels = [key for key in self.model.keys()]
             print('\nModel Name is: ',self.model[key]['model_name'])
             print('\nModel Path is: ',self.model[key]['model_path'])
             print('\nActivation Function is: ',self.activation_func)
@@ -175,13 +174,15 @@ class agent(neuralnet):
 
     def train_model(self, epoch, training_mode):
         def training_mode1():
+            print('\n%s and %s are main and target models, respectively' % ('model1','model2'))
             self.remember('model1','model2')
             if epoch % 10 == 0:
-                counter1 = 0
+                counter1 = 1
                 counter2 = counter1 + 1
-                for _ in range(self.numberofmodels):
+                for _ in range(self.numberofmodels-1):
                     if counter2 >= self.numberofmodels:
                         counter2 = 0
+                    print('%s and %s are main and tardet models, respectively' % (self.listOfmodels[counter1],self.listOfmodels[counter2]))
                     self.remember(self.listOfmodels[counter1],self.listOfmodels[counter2])
                     counter1 = counter1 + 1
                     counter2 = counter2 + 1          
