@@ -151,7 +151,8 @@ for epoch in range(numberofepochs):
         try:
             myagent.train_model(epoch=epoch,training_mode=1)
         except:
-            print('best model does not exist')
+            print('BEST MODEL DOES NOT EXIST')
+            time.sleep(2)
         replay = myagent.save_replay
         print('buffer size= %s' % (len(myagent.replay)))
         print('\n----- New Epoch ----- Epoch: %s\n' % (epoch+1))

@@ -142,7 +142,7 @@ class agent(neuralnet):
     def remember(self,main_model,target_model):
         model        = self.model[main_model]
         target_model = self.model[target_model]
-        minibatch    = random.sample(self.replay, self.batchSize)
+        minibatch    = random.sample(self.replay, int(self.buffer/100))
         action       = {}
         maxQ         = {}
         Qval         = {}
@@ -155,6 +155,9 @@ class agent(neuralnet):
                 Qval[key] = model['model_network'].predict(state[key].reshape(1,self.numberofstate), batch_size= 1)
             y             = {}
             Qval['trgt']  = target_model['model_network'].predict(state['new'].reshape(1,self.numberofstate), batch_size=1)
+            if self.dim == 1:
+                for key in Qval.keys():
+                    Qval[key] = [Qval[key]]
             for dim in range(self.dim):
                 y['action'+str(dim)] = Qval['old'][dim]
                 action[str(dim)]     = np.argmax(Qval['new'][dim][0])
@@ -170,7 +173,6 @@ class agent(neuralnet):
         X_train = state['old'].reshape(1,self.numberofstate)
         y_train = y
         model['model_network'].fit(X_train, y_train, batch_size=self.batchSize, nb_epoch=1, verbose=1)
-        return model
 
     def train_model(self, epoch, training_mode):
         def training_mode1():
@@ -182,7 +184,7 @@ class agent(neuralnet):
                 for _ in range(self.numberofmodels-1):
                     if counter2 >= self.numberofmodels:
                         counter2 = 0
-                    print('%s and %s are main and tardet models, respectively' % (self.listOfmodels[counter1],self.listOfmodels[counter2]))
+                    print('\n%s and %s are main and target models, respectively' % (self.listOfmodels[counter1],self.listOfmodels[counter2]))
                     self.remember(self.listOfmodels[counter1],self.listOfmodels[counter2])
                     counter1 = counter1 + 1
                     counter2 = counter2 + 1          
