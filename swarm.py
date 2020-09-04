@@ -21,6 +21,7 @@ class swarm():
         self.delta_t      = delta_t
         self.TimeConstant = TimeConstant
         self.trgt_loc     = {str(ii): target_location[ii] for ii in range(self.dim)}
+        self.random       = {str(jj): np.random.randint(0,2) for jj in range(self.dim)} 
         self.__coefficients_()
         self.wght         = {'follower': [self.params[ii] for ii in range(8,14)],
                              'leader'  : np.array((0.0,0.0,0.0,0.0,10.0,0.0)),
@@ -29,12 +30,13 @@ class swarm():
             self.screen       = pygame.display.set_mode((self.screensize[0],self.screensize[1]))
             pygame.display.set_caption("Swarm System")
             self.screen.fill(self.WHITE)
-                    
+                  
         for ii in range(self.nop):
             self.member[str(ii)] = {'center':(0,0)}            
-            self.member[str(ii)]['position']    = {str(jj): np.random.random()*500+100 \
-                                                   for jj in range(self.dim)}
-            self.member[str(ii)]['velocity']    = {str(jj): np.random.random()*20 for jj in range(self.dim)}
+            self.member[str(ii)]['position']    = {str(jj): np.random.random() * self.screensize[jj] * 0.2 \
+                                                            + self.random[str(jj)] * self.screensize[jj] * 0.8 \
+                                                            for jj in range(self.dim)}
+            self.member[str(ii)]['velocity']    = {str(jj): (1-self.random[str(jj)])*np.random.random()*20 - self.random[str(jj)]*20 for jj in range(self.dim)}
             self.member[str(ii)]['deltavel']    = {str(jj): 0 for jj in range(self.dim)}
             self.member[str(ii)]['deltapos']    = {str(jj): 0 for jj in range(self.dim)}
             self.member[str(ii)]['center']      = (int(np.round(self.member[str(ii)]['position']['0'])),

@@ -17,7 +17,7 @@ from QLearningClass import *
 number_of_particles = 24
 number_of_axes      = 2
 delta_t             = 0.1
-t_final             = 1000
+t_final             = 2000
 
 def actions():
     act = np.ndarray(shape=(29,2))
@@ -38,7 +38,7 @@ def actions():
     return act
 
 screen_size       = [3000,1800]
-initial_location  = [2000,200]
+initial_location  = [screen_size[0]/2,screen_size[1]/2]
 list_min_distance = []
 list_ave_distance = []
 xtrg              = [initial_location[ii] + np.random.randint([900,1400])[ii] for ii in range(number_of_axes)]
@@ -63,7 +63,7 @@ print('%s of the states are gathered from the closest leader of the swarm' % (nu
 print('----------------------------------------------------------------------------')
 action            = actions()  
 myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofmodels=5,
-                          numberofaction=len(action),load_saved_model=True,dim=number_of_axes)
+                          numberofaction=len(action),load_saved_model=False,dim=number_of_axes)
 ################################################
 ### States are appended to the "states list" ###
 def stateappend(state):
@@ -100,7 +100,7 @@ def reward(dist2leader,dist2closest,score,time):
 ################################################
 #%%
 for epoch in range(numberofepochs):
-    xtrg          = [initial_location[ii] + np.random.randint([900,1400])[ii] for ii in range(number_of_axes)]
+    xtrg          = [np.random.randint(screen_size)[ii] for ii in range(number_of_axes)]
     particles.__init__(number_of_particles=number_of_particles,screensize=screen_size,target_location=xtrg,
                        display=True,CommRng=100,summary=False)
     rlagent       = [key for key in particles.member.keys() if particles.member[key]['role']=='rlagent'][0]
@@ -127,22 +127,22 @@ for epoch in range(numberofepochs):
         myagent.replay_list(actionn)
         myagent.state    = myagent.newstate
         myagent.epsilon  = 0.05 if myagent.epsilon<0.05 else myagent.epsilon - 1 / myagent.buffer
-        print('epoch= %s, reward= %0.2f, score= %0.2f, maxtime= %0.2f, maxscore= %0.2f, dist2leader= %0.2f, dist2closest= %0.2f, time= %0.1f' %\
-             (epoch,myagent.reward,score,myagent.maxtime,myagent.maxscore,distance['2leader'],distance['2closest'],t))
+        print('epoch= %s, reward= %0.2f, score= %0.2f, maxtime= %0.2f, maxscore= %0.2f, dist2leader= %0.2f, dist2closest= %0.2f, eps= %.2f, time= %0.1f' %\
+             (epoch,myagent.reward,score,myagent.maxtime,myagent.maxscore,distance['2leader'],distance['2closest'],myagent.epsilon,t))
         
         if t%100 >= 0.0 and t%100 < delta_t:
             print('\ntarget location changes\n')
-            particles.trgt_loc       = {str(ii): np.random.randint(screen_size)[ii] for ii in range(particles.dim)}
-            particles.targetposition = {'leader': particles.member[particles.leader]['position'],
-                                        'target': particles.trgt_loc}
+            particles.trgt_loc                 = {str(ii) : np.random.randint(screen_size)[ii] for ii in\
+                                                            range(particles.dim)}
+            particles.targetposition['target'] = particles.trgt_loc
 
     if myagent.done:
-        if t > myagent.maxtime:
+        if t >= myagent.maxtime:
             myagent.maxtime  = t
             myagent.mtd      = True
         else:
             myagent.mtd      = False
-        if score > myagent.maxscore:
+        if score >= myagent.maxscore:
             myagent.maxscore = score
             myagent.msd      = True
         else:

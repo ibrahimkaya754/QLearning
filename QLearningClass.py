@@ -65,7 +65,7 @@ class neuralnet():
                                        'compile'       : model.compile(optimizer=self.opt, 
                                                          loss=self.loss, metrics=['mse']) }
                                        
-            self.model['model1']['best'] = { 'model_path'    : {'maxscore' : os.getcwd()+"/" + 'best_model_msd' + '.hdf5',
+            self.model['model1']['best'] = { 'model_path'   : {'maxscore' : os.getcwd()+"/" + 'best_model_msd' + '.hdf5',
                                                                'maxtime'  : os.getcwd()+"/" + 'best_model_mtd' + '.hdf5'},
                                             'model_network' : {'maxscore' : '','maxtime'  : ''},
                                             'mtd'           : False,
@@ -82,8 +82,11 @@ class neuralnet():
                                             
                     if os.path.exists(self.model['model1']['best']['model_path']['maxscore']):
                         self.model['model1']['best']['model_network']['maxscore'] = load_model(self.model['model1']['best']['model_path']['maxscore'])
+                        print('model with maxscore has been loaded\n')
                     if os.path.exists(self.model['model1']['best']['model_path']['maxtime']):
                         self.model['model1']['best']['model_network']['maxtime']  = load_model(self.model['model1']['best']['model_path']['maxscore'])
+                        print('model with maxtime has been loaded\n')
+
         print('\n-----------------------')
         self.listOfmodels = [key for key in self.model.keys()]
     def __describe__(self):
