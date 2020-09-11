@@ -49,7 +49,7 @@ leader            = particles.leader
 numberofneighbour = 5
 numberofleader    = 1
 clock             = pygame.time.Clock()
-numberofepochs    = 10000
+numberofepochs    = 100000
 
 ### The multiplayer 2 below is for 'position' and 'velocity' ###
 print('----------------------------------------------------------------------------')
@@ -63,7 +63,7 @@ print('%s of the states are gathered from the closest leader of the swarm' % (nu
 print('----------------------------------------------------------------------------')
 action            = actions()  
 myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofmodels=5,
-                          numberofaction=len(action),load_saved_model=False,dim=number_of_axes)
+                          numberofaction=len(action),load_saved_model=True,dim=number_of_axes)
 ################################################
 ### States are appended to the "states list" ###
 def stateappend(state):
@@ -149,7 +149,7 @@ for epoch in range(numberofepochs):
             myagent.msd      = False
         myagent.save(time=t, target_time=150, score=score, target_score=100000)
         try:
-            myagent.train_model(epoch=epoch,training_mode=1)
+            myagent.train_model(epoch=epoch,training_mode=2)
         except:
             print('BEST MODEL DOES NOT EXIST')
             time.sleep(2)

@@ -82,7 +82,7 @@ class neuralnet():
                                             
                     if os.path.exists(self.model['model1']['best']['model_path']['maxscore']):
                         self.model['model1']['best']['model_network']['maxscore'] = load_model(self.model['model1']['best']['model_path']['maxscore'])
-                        print('model with maxscore has been loaded\n')
+                        print('model with maxscore has been loaded')
                     if os.path.exists(self.model['model1']['best']['model_path']['maxtime']):
                         self.model['model1']['best']['model_network']['maxtime']  = load_model(self.model['model1']['best']['model_path']['maxscore'])
                         print('model with maxtime has been loaded\n')
@@ -145,7 +145,7 @@ class agent(neuralnet):
     def remember(self,main_model,target_model):
         model        = self.model[main_model]
         target_model = self.model[target_model]
-        minibatch    = random.sample(self.replay, int(self.buffer/100))
+        minibatch    = random.sample(self.replay, int(self.batchSize))
         action       = {}
         maxQ         = {}
         Qval         = {}
@@ -198,28 +198,21 @@ class agent(neuralnet):
                     self.model['model1']['model_network'].load_weights(self.model['model1']['best']['model_path']['maxtime'])
             
         def training_mode2():
-            self.remember('model1','model2')
-            main_weights   = self.model['model1']['model_network'].get_weights()
-            target_weights = self.model['model2']['model_network'].get_weights()
-            for i, layer_weights in enumerate(main_weights):
-                target_weights[i] = target_weights[i] * (1-self.tau) + self.tau * layer_weights
-            if len(self.replay)>=(0.9*self.buffer):
-                if os.path.exists(os.getcwd()+"/" + 'best_model_msd' + '.hdf5'):
-                    best_weights = self.model['model1']['best']['model_network']['maxscore'].get_weights()
-                if os.path.exists(os.getcwd()+"/" + 'best_model_mtd' + '.hdf5'):
-                    best_weights = self.model['model1']['best']['model_network']['maxtime'].get_weights()
-                for i, layer_weights in enumerate(best_weights):
+            counter1 = 0
+            counter2 = counter1 + 1
+            for _ in range(self.numberofmodels):
+                if counter2 >= self.numberofmodels:
+                    continue
+                print('\n%s and %s are main and target models, respectively' % (self.listOfmodels[counter1],self.listOfmodels[counter2]))
+                self.remember(self.listOfmodels[counter1],self.listOfmodels[counter2])
+                main_weights   = self.model[self.listOfmodels[counter1]]['model_network'].get_weights()
+                target_weights = self.model[self.listOfmodels[counter2]]['model_network'].get_weights()
+                for i, layer_weights in enumerate(main_weights):
                     target_weights[i] = target_weights[i] * (1-self.tau) + self.tau * layer_weights
-            if epoch % 20 == 0:
-                if os.path.exists(os.getcwd()+"/" + 'best_model_msd' + '.hdf5'):
-                    best_weights = self.model['model1']['best']['model_network']['maxscore'].get_weights()
-                if os.path.exists(os.getcwd()+"/" + 'best_model_mtd' + '.hdf5'):
-                    best_weights = self.model['model1']['best']['model_network']['maxtime'].get_weights()
-                for i, layer_weights in enumerate(best_weights):
-                    main_weights[i] = main_weights[i] * 0.5 + 0.5 * layer_weights
-            
-            self.model['model1']['model_network'].set_weights(main_weights)
-            self.model['model2']['model_network'].set_weights(target_weights)
+                self.model[self.listOfmodels[counter1]]['model_network'].set_weights(main_weights)
+                self.model[self.listOfmodels[counter2]]['model_network'].set_weights(target_weights)
+                counter1 = counter1 + 1
+                counter2 = counter2 + 1
 
         if len(self.replay) >= self.annealing:        
             if training_mode == 1:
