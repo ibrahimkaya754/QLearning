@@ -64,6 +64,8 @@ print('-------------------------------------------------------------------------
 action            = actions()  
 myagent           = agent(numberofstate=particles.dim*(numberofneighbour+numberofleader)*2,numberofmodels=5,
                           numberofaction=len(action),load_saved_model=True,dim=number_of_axes)
+myagent.epsilon   = 0.05
+myagent.annealing = 20000
 ################################################
 ### States are appended to the "states list" ###
 def stateappend(state):

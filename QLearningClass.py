@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore")
 
 print('Done!')
 
-config = tf.ConfigProto()
+config = tf.compat.v1.ConfigProto()
 config.gpu_options.allow_growth = True
 
 class neuralnet():
