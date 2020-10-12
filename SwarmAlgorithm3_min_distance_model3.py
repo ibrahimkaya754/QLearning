@@ -17,8 +17,8 @@ from QLearningClass import *
 number_of_particles = 24
 number_of_axes      = 2
 delta_t             = 0.1
-t_final             = 2000
-
+t_final             = 5000
+""
 def actions():
     act = np.ndarray(shape=(29,2))
    

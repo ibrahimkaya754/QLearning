@@ -84,7 +84,7 @@ class neuralnet():
                         self.model['model1']['best']['model_network']['maxscore'] = load_model(self.model['model1']['best']['model_path']['maxscore'])
                         print('model with maxscore has been loaded')
                     if os.path.exists(self.model['model1']['best']['model_path']['maxtime']):
-                        self.model['model1']['best']['model_network']['maxtime']  = load_model(self.model['model1']['best']['model_path']['maxscore'])
+                        self.model['model1']['best']['model_network']['maxtime']  = load_model(self.model['model1']['best']['model_path']['maxtime'])
                         print('model with maxtime has been loaded\n')
 
         print('\n-----------------------')
